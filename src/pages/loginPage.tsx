@@ -91,13 +91,13 @@ const PrimaryButton: React.FC<
 const Header: React.FC = () => (
   <header className="pt-10 my-10 pb-4">
     <div className="mx-auto flex max-w-7xl items-center justify-center px-4">
-      <div className="flex items-center justify-center">
-        <img
-          src={biomeLogoImage}
-          alt="The Biome Learning Center Logo"
-          className="w-40 h-20 md:w-80 md:h-20 my-20 object-contain"
-        />
-      </div>
+<div className="flex items-center justify-center">
+  <img
+    src={biomeLogoImage}
+    alt="Microbiome Logo"
+    className="w-80 md:w-[28rem] mb-8 object-contain"
+  />
+</div>
     </div>
   </header>
 );
@@ -189,7 +189,8 @@ const LoginPage: React.FC = () => {
                 className=""
               >
                 <SocialButton
-                  icon={<FcGoogle className="h-5 w-5 text-black" />}
+                  icon={<FcGoogle className="h-5 w-5" style={{ filter: "grayscale(100%) brightness(0)" }} />
+}
                 >
                   Sign in with Google
                 </SocialButton>
@@ -212,7 +213,7 @@ const LoginPage: React.FC = () => {
               <a
                 href={`${BASE_URL}/social/facebook`}
               >
-                <SocialButton icon={<FaFacebookF className="h-4 w-4" />}>
+                <SocialButton icon={<FaFacebookF className="h-4 w-4 text-black" />}>
                   Sign in with Facebook
                 </SocialButton>
               </a>

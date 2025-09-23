@@ -65,13 +65,14 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       <div className="w-full max-w-2xl space-y-12">
         
         {/* Logo */}
-        <div className="flex items-center justify-center">
-          <img
-            src={biomeLogoImage}
-            alt="Microbiome Logo"
-            className="w-48 md:w-72 mb-8 object-contain"
-          />
-        </div>
+<div className="flex items-center justify-center">
+  <img
+    src={biomeLogoImage}
+    alt="Microbiome Logo"
+    className="w-80 md:w-[28rem] mb-8 object-contain"
+  />
+</div>
+
 
         {/* Heading */}
         <div className="text-center space-y-3">

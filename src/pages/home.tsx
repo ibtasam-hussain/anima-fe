@@ -25,6 +25,7 @@ import AssistantMessage from "../components/AssistantMessage";
 import { set } from "date-fns";
 import { toast } from "react-hot-toast";
 import PH from "../assets/ph.jpg";
+import logo from "../assets/logo.png";
 
 const BaseUrl = import.meta.env.VITE_BASE_URL as string;
 const ImageUrl = import.meta.env.VITE_IMAGE_URL as string;
@@ -343,11 +344,13 @@ const ChatApp: React.FC = () => {
           <div className="relative flex h-full flex-col">
             <div className="flex items-center gap-3 px-5 pt-6 pb-3">
               {sidebarOpen && (
-                <span className="text-[18px] font-semibold leading-tight">
-                  The Biome
-                  <br />
-                  Learning Center
-                </span>
+                <div className="flex items-center justify-center">
+                  <img
+                    src={logo}
+                    alt="Microbiome Logo"
+                    className="w-80 md:w-[28rem] mb-8 object-contain"
+                  />
+                </div>
               )}
             </div>
 
