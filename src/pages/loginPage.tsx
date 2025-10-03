@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL || process.env.Base_url;
+console.log(BASE_URL);
 
 const Input: React.FC<
   React.InputHTMLAttributes<HTMLInputElement> & { label: string; id: string }
@@ -129,7 +130,7 @@ const LoginPage: React.FC = () => {
     const password = formData.get("password") as string;
 
     try {
-      const res = await fetch(`${BASE_URL}/users/login`, {
+      const res = await fetch(`${BASE_URL}users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -185,7 +186,7 @@ const LoginPage: React.FC = () => {
             </div>
             <div className="md:col-span-1">
               <a
-                href={`${BASE_URL}/social/google`}
+                href={`${BASE_URL}social-login/google`}
                 className=""
               >
                 <SocialButton
@@ -211,7 +212,7 @@ const LoginPage: React.FC = () => {
             </div>
             <div className="md:col-span-1">
               <a
-                href={`${BASE_URL}/social/facebook`}
+                href={`${BASE_URL}social-login/facebook`}
               >
                 <SocialButton icon={<FaFacebookF className="h-4 w-4 text-black" />}>
                   Sign in with Facebook

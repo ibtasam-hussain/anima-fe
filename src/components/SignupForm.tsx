@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL || process.env.Base_url;
+console.log(BASE_URL);
 
 export const SignupForm = () => {
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 
   try {
     // 1. Signup request
-    const res = await fetch(`${BASE_URL}/users/signup`, {
+    const res = await fetch(`${BASE_URL}users/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ firstName, lastName, email, password }),
@@ -133,14 +134,14 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         {/* Social Login */}
         <div className="flex flex-col md:flex-row gap-4 justify-center">
           <a 
-            href={`${BASE_URL}/social/google`} 
+            href={`${BASE_URL}social-login/google`} 
             className="flex items-center justify-center gap-2 border rounded-md px-4 py-3 flex-1 hover:bg-gray-50 transition"
           >
             <FaGoogle className="text-black" /> Sign in with Google
           </a>
 
           <a 
-            href={`${BASE_URL}/social/facebook`} 
+            href={`${BASE_URL}social-login/facebook`} 
             className="flex items-center justify-center gap-2 border rounded-md px-4 py-3 flex-1 hover:bg-gray-50 transition"
           >
             <FaFacebookF className="text-black" /> Sign in with Facebook

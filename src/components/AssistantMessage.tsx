@@ -1,50 +1,58 @@
 // src/components/AssistantMessage.tsx
 import React from "react";
+import { Download as DownloadIcon, Copy } from "lucide-react";
+import logo from "../assets/logo.png";
+import { toast } from "react-hot-toast";
 
-type AssistantMessageProps = {
+type Props = {
   text: string;
-  tools?: string[]; // exactly 2 if you want
 };
 
-const AssistantMessage: React.FC<AssistantMessageProps> = ({ text, tools = [] }) => {
+const AssistantMessage: React.FC<Props> = ({ text }) => {
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
+  };
+
   return (
-    <div className="w-full rounded-xl border border-gray-300 bg-white/10 shadow-lg">
-      {/* Top: avatar + message */}
-      <div className="flex items-start gap-3 px-4 py-3">
-        {/* Avatar */}
-        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#e5ebff] text-[#3B68F6] shrink-0">
-          {/* Simple icon to match the screenshot style */}
-          <svg
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48l2.12 2.12M5.64 18.36l2.12-2.12m8.48-8.48l2.12-2.12" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
+    <div className="flex items-start gap-2">
+      <div className="flex flex-col max-w-3xl">
+        {/* Message bubble */}
+        <div className="rounded-lg border border-gray-200 opacity-80 bg-gray-50 shadow-sm overflow-hidden">
+          {/* Logo + Text */}
+          <div className="flex items-start gap-3 px-4 py-3">
+            <img
+              src={logo}
+              alt="AI"
+              className="h-7 w-7 shrink-0 rounded-full object-cover"
+            />
+            <div className="text-sm text-gray-800 leading-relaxed">
+              {text}
+            </div>
+          </div>
+
+          {/* Source Row (aligned left) */}
+          <div className="flex items-center gap-2 border-t border-gray-200 bg-gray-100 px-3 py-2">
+            <span className="text-[12px] text-gray-500">Source :</span>
+            <button className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-[12px] text-gray-700 shadow-sm hover:bg-gray-100">
+              Provide Source
+            </button>
+            <button className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-[12px] text-gray-700 shadow-sm hover:bg-gray-100">
+              <DownloadIcon className="h-3.5 w-3.5" />
+              Download PDF
+            </button>
+          </div>
         </div>
 
-        {/* Message text */}
-        <p className="text-[14px] leading-relaxed text-gray-800">
-          {text}
-        </p>
-      </div>
-
-      {/* Bottom: Suggested tools */}
-      <div className="border-t border-gray-300 bg-white/10 px-4 py-2 rounded-b-xl">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[12px] text-gray-500">Suggested tools:</span>
-
-          {tools.slice(0, 2).map((t, i) => (
-            <button
-              key={i}
-              className="rounded-md border border-gray-300 bg-gray-50 px-2.5 py-1 text-[11px] text-gray-700 hover:bg-gray-100"
-            >
-              {t}
-            </button>
-          ))}
+        {/* Timestamp + Copy (below message) */}
+        <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-500 px-1">
+          <span>{new Date().toLocaleTimeString()}</span>
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </div>
