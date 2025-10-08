@@ -90,13 +90,13 @@ const PrimaryButton: React.FC<
 };
 
 const Header: React.FC = () => (
-  <header className="pt-10 my-10 pb-4">
-    <div className="mx-auto flex max-w-7xl items-center justify-center px-4">
+  <header className="mt-10">
+    <div className="mx-auto flex max-w-7xl items-center justify-center">
 <div className="flex items-center justify-center">
   <img
     src={biomeLogoImage}
     alt="Microbiome Logo"
-    className="w-80 md:w-[28rem] mb-8 object-contain"
+    className="w-80 md:w-[28rem] object-contain"
   />
 </div>
     </div>
