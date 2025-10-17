@@ -7,12 +7,12 @@ import { FaGoogle, FaFacebookF } from "react-icons/fa";
 import biomeLogoImage from "@/assets/logo.png";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-
+import { Eye, EyeOff } from "lucide-react"; 
 const BASE_URL = import.meta.env.VITE_BASE_URL || process.env.Base_url;
 
 export const SignupForm = () => {
   const [loading, setLoading] = useState(false);
-
+const [showPassword, setShowPassword] = useState(false); // 👈 add this state
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -86,10 +86,40 @@ export const SignupForm = () => {
             <Input id="lastName" name="lastName" placeholder="Last Name" type="text" className="h-14 text-base" required />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input id="email" name="email" placeholder="Email Address" type="email" className="h-14 text-base" required />
-            <Input id="password" name="password" placeholder="Password" type="password" className="h-14 text-base" required />
-          </div>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <Input
+    id="email"
+    name="email"
+    placeholder="Email Address"
+    type="email"
+    className="h-14 text-base"
+    required
+  />
+
+  {/* 🔹 Password field with show/hide icon */}
+  <div className="relative">
+    <Input
+      id="password"
+      name="password"
+      placeholder="Password"
+      type={showPassword ? "text" : "password"}
+      className="h-14 text-base pr-10"
+      required
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword((prev) => !prev)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-800"
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? (
+        <EyeOff className="h-5 w-5" />
+      ) : (
+        <Eye className="h-5 w-5" />
+      )}
+    </button>
+  </div>
+</div>
 
           <Button
             type="submit"

@@ -60,6 +60,18 @@ type ChatMessage = {
   content: string;
   meta?: AiMeta | null;
 };
+// inside chatApis.ts
+export type AiMeta = {
+  sources?: any[];
+  query?: string;
+  success?: boolean;
+  error?: string | null;
+  timestamps?: string;
+  where_to_find?: string;
+  tools?: string[];
+  response_time?: string | null; // ✅ add this
+  ai_timestamp?: string | null; // ✅ add this
+};
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
@@ -256,6 +268,8 @@ function CreateGroupModal({
     onClose();
   };
 
+
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
@@ -442,9 +456,12 @@ const ChatApp: React.FC = () => {
   } | null>(null);
   const [openTools, setOpenTools] = useState<Record<string, any>>({});
 
-  console.log("aiSources", aiSources);
+  console.log("messages", messages);
   const showLanding = messages.length === 0;
   const currentChat = chatList.find((c) => c.id === currentChatId) || null;
+
+  const groupMenuRef = useRef<HTMLDivElement | null>(null);
+const chatMenuRef = useRef<HTMLDivElement | null>(null);
 
   // ---------- Theme Toggle ----------
   const handleThemeToggle = () => {
@@ -481,6 +498,34 @@ const ChatApp: React.FC = () => {
       toast.error("Rename failed");
     }
   };
+
+  useEffect(() => {
+  const handleClickOutside = (e: MouseEvent) => {
+    const target = e.target as Node;
+
+    // ✅ if clicked outside both menus
+    if (
+      groupMenuRef.current &&
+      !groupMenuRef.current.contains(target) &&
+      chatMenuRef.current &&
+      !chatMenuRef.current.contains(target)
+    ) {
+      setMenuOpenGroupId(null);
+      setMenuOpenChatId(null);
+    }
+  };
+
+  document.addEventListener("click", handleClickOutside);
+  return () => document.removeEventListener("click", handleClickOutside);
+}, []);
+
+useEffect(() => {
+  // Whenever any modal opens, close all context menus
+  if (profileModalOpen || createGroupModalOpen || renameModalOpen || newGroupModalOpen) {
+    setMenuOpenChatId(null);
+    setMenuOpenGroupId(null);
+  }
+}, [profileModalOpen, createGroupModalOpen, renameModalOpen, newGroupModalOpen]);
 
   const handleLogout = () => {
     localStorage.removeItem("auth_token");
@@ -778,7 +823,11 @@ const ChatApp: React.FC = () => {
           id: String(ai.id),
           role: "ai",
           content: ai.content,
-          meta: ai.meta ?? null,
+          meta: {
+            ...ai.meta,
+            ai_timestamp: ai.meta?.ai_timestamp || new Date().toISOString(),
+            response_time: ai.meta?.response_time || null,
+          },
         },
       ]);
 
@@ -800,10 +849,6 @@ const ChatApp: React.FC = () => {
 
   // ---------- Delete Chat ----------
   const handleDeleteChat = async (chatId: number) => {
-    const ok = window.confirm(
-      "Delete this chat? This action cannot be undone."
-    );
-    if (!ok) return;
     try {
       await apiDeleteChat(chatId);
       setChatList((prev) => prev.filter((c) => c.id !== chatId));
@@ -889,7 +934,7 @@ const ChatApp: React.FC = () => {
                     return (
                       <div
                         key={group.id}
-                        className="rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-sm"
+                        className="rounded-2xl bg-white border border-gray-200 shadow-sm relative"
                       >
                         <div className="relative">
                           <button
@@ -933,7 +978,14 @@ const ChatApp: React.FC = () => {
 
                           {/* Dropdown Menu */}
                           {menuOpenGroupId === group.id && (
-                            <div className="absolute right-4 top-10 z-20 w-32 rounded-md border bg-white shadow-lg">
+                            <div
+                                ref={groupMenuRef}
+                              className="absolute right-4 top-10 z-[9999] w-32 rounded-md border bg-white shadow-xl"
+                              style={{
+                                transform: "translateY(0)",
+                                position: "absolute",
+                              }}
+                            >
                               <button
                                 onClick={() => {
                                   setRenameTarget({
@@ -950,16 +1002,32 @@ const ChatApp: React.FC = () => {
                               </button>
                               <button
                                 onClick={async () => {
-                                  const ok = window.confirm(
-                                    "Delete this group? This will remove all its chats."
-                                  );
-                                  if (!ok) return;
                                   try {
                                     await deleteGroup(group.id);
+
+                                    // 🧠 Remove chats of this group
+                                    setChatList((prev) =>
+                                      prev.filter((c) => c.groupId !== group.id)
+                                    );
+
+                                    // 🧠 Clear active state if this group was open
+                                    if (currentGroupId === group.id) {
+                                      setCurrentGroupId(null);
+                                      setCurrentChatId(null);
+                                      setMessages([]);
+                                      setRightPaneVisible(false);
+                                      localStorage.removeItem("currentGroupId");
+                                      localStorage.removeItem("currentChatId");
+                                    }
+
+                                    // 🧠 Remove the group itself
                                     setGroups((prev) =>
                                       prev.filter((g) => g.id !== group.id)
                                     );
-                                    toast.success("Group deleted successfully");
+
+                                    toast.success(
+                                      "Group and its chats deleted successfully"
+                                    );
                                   } catch (err: any) {
                                     toast.error("Failed to delete group");
                                     console.error(err);
@@ -967,7 +1035,7 @@ const ChatApp: React.FC = () => {
                                     setMenuOpenGroupId(null);
                                   }
                                 }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                               >
                                 <Trash2 className="h-4 w-4" /> Delete
                               </button>
@@ -1015,7 +1083,9 @@ const ChatApp: React.FC = () => {
                                     />
 
                                     {menuOpenChatId === chat.id && (
-                                      <div className="absolute right-4 top-9 w-32 rounded-md border bg-white shadow-lg z-10">
+                                      <div 
+                                      ref={groupMenuRef}
+                                      className="absolute right-4 top-9 w-32 rounded-md border bg-white shadow-lg z-10">
                                         <button
                                           onClick={() => {
                                             setRenameTarget({
@@ -1061,75 +1131,74 @@ const ChatApp: React.FC = () => {
                 )}
               </div>
             </div>
-{sidebarOpen ? (
-  <div className="space-y-3 border-t border-gray-100 px-5 py-5">
-    <div
-      className="flex items-center justify-between rounded-xl border border-gray-200 p-3 hover:bg-gray-50"
-      onClick={() => setProfileModalOpen(true)}
-      role="button"
-    >
-      {/* Left: avatar + name */}
-      <div className="flex items-center gap-3">
-        <img
-          src={
-            user?.profile &&
-            user.profile.trim() &&
-            user.profile !== "null"
-              ? user.profile.startsWith("http")
-                ? user.profile
-                : `${ImageUrl}${user.profile}`
-              : PH
-          }
-          alt="User"
-          className="h-9 w-9 rounded-full object-cover"
-        />
-        <div>
-          <div className="text-[14px] font-semibold text-gray-900">
-            {user?.firstName} {user?.lastName}
-          </div>
-        </div>
-      </div>
+            {sidebarOpen ? (
+              <div className="space-y-3 border-t border-gray-100 px-5 py-5">
+                <div
+                  className="flex items-center justify-between rounded-xl border border-gray-200 p-3 hover:bg-gray-50"
+                  onClick={() => setProfileModalOpen(true)}
+                  role="button"
+                >
+                  {/* Left: avatar + name */}
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={
+                        user?.profile &&
+                        user.profile.trim() &&
+                        user.profile !== "null"
+                          ? user.profile.startsWith("http")
+                            ? user.profile
+                            : `${ImageUrl}${user.profile}`
+                          : PH
+                      }
+                      alt="User"
+                      className="h-9 w-9 rounded-full object-cover"
+                    />
+                    <div>
+                      <div className="text-[14px] font-semibold text-gray-900">
+                        {user?.firstName} {user?.lastName}
+                      </div>
+                    </div>
+                  </div>
 
-      {/* Right: settings icon */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation(); // parent click se bachao
-          setProfileModalOpen(true);
-        }}
-        className="ml-2 inline-flex items-center rounded-md p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-        aria-label="Open settings"
-        title="Settings"
-      >
-        <Settings className="h-4 w-4" />
-      </button>
-    </div>
+                  {/* Right: settings icon */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // parent click se bachao
+                      setProfileModalOpen(true);
+                    }}
+                    className="ml-2 inline-flex items-center rounded-md p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                    aria-label="Open settings"
+                    title="Settings"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                </div>
 
-    <button
-      onClick={handleLogout}
-      className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-red-600 hover:bg-red-100"
-    >
-      <Power className="h-4 w-4" />
-      <span className="text-[14px]">Log out Account</span>
-    </button>
-  </div>
-) : (
-  /* ...collapsed state as-is... */
-  <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-2 py-4">
-    <UserRound
-      onClick={() => setProfileModalOpen(true)}
-      className="h-4 w-4 cursor-pointer"
-    />
-    <SunMedium
-      onClick={handleThemeToggle}
-      className="h-4 w-4 text-gray-600 cursor-pointer"
-    />
-    <Power
-      onClick={handleLogout}
-      className="h-4 w-4 text-red-500 cursor-pointer"
-    />
-  </div>
-)}
-
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-red-600 hover:bg-red-100"
+                >
+                  <Power className="h-4 w-4" />
+                  <span className="text-[14px]">Log out Account</span>
+                </button>
+              </div>
+            ) : (
+              /* ...collapsed state as-is... */
+              <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-2 py-4">
+                <UserRound
+                  onClick={() => setProfileModalOpen(true)}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                <SunMedium
+                  onClick={handleThemeToggle}
+                  className="h-4 w-4 text-gray-600 cursor-pointer"
+                />
+                <Power
+                  onClick={handleLogout}
+                  className="h-4 w-4 text-red-500 cursor-pointer"
+                />
+              </div>
+            )}
           </div>
         </aside>
 
@@ -1220,16 +1289,35 @@ const ChatApp: React.FC = () => {
                       }}
                       isToolsActive={!!openTools[m.id]}
                       onToggleTools={() => {
+                        // 🧩 paste THIS fixed code exactly here:
                         setOpenTools((prev) => {
                           const next = { ...prev };
-                          if (next[m.id]) delete next[m.id];
-                          else if (m.meta?.tools?.length)
+
+                          if (next[m.id]) {
+                            // toggle off
+                            delete next[m.id];
+                          } else if (m.meta) {
+                            // ✅ Extract all sources and their tools
+                            const allSources = Array.isArray(m.meta.sources)
+                              ? m.meta.sources.map((src) => ({
+                                  source: src.source,
+                                  tools: Array.isArray(src.tools)
+                                    ? src.tools
+                                    : src.tools
+                                    ? [src.tools]
+                                    : [],
+                                }))
+                              : [];
+
                             next[m.id] = {
-                              tools: m.meta.tools,
-                              query: m.meta.query,
+                              query: m.meta.query || null,
+                              sources: allSources,
                             };
+                          }
+
                           return next;
                         });
+
                         setRightPaneVisible(true);
                         setRightTab("Tools");
                       }}
@@ -1312,117 +1400,125 @@ const ChatApp: React.FC = () => {
 
             <div className="h-[calc(100%-120px)] overflow-y-auto px-4 py-4 space-y-4">
               {rightTab === "Content" ? (
-                // existing source rendering
                 Object.keys(openSources).length === 0 ? (
                   <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
                     No sources selected
                   </div>
                 ) : (
-                  Object.entries(openSources).map(([msgId, meta]) => (
+                  Object.entries(openSources).map(([msgId, meta]: any) => (
                     <div
                       key={msgId}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-3 shadow-sm"
+                      className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm space-y-3"
                     >
-                      <div className="text-sm font-medium text-gray-900">
-                        {meta.query || "Source"}
+                      {/* 🔹 Parent heading: the query */}
+                      <div className="text-sm font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">
+                        {meta.query ? `Query: ${meta.query}` : "Query"}
                       </div>
-                      <div className="mt-1 text-xs text-gray-700 space-y-1">
-                        {meta.where_to_find && (
-                          <div>
-                            <span className="font-medium">Where:</span>{" "}
-                            {meta.where_to_find}
+
+                      {/* 🔹 List of sources under that query */}
+                      {Array.isArray(meta.sources) &&
+                      meta.sources.length > 0 ? (
+                        meta.sources.map((src: any, i: number) => (
+                          <div
+                            key={i}
+                            className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
+                          >
+                            <div className="font-medium text-gray-800">
+                              Source {i + 1}
+                            </div>
+                            {src.where_to_find && (
+                              <div>
+                                <span className="font-medium">Where:</span>{" "}
+                                {src.where_to_find}
+                              </div>
+                            )}
+                            {src.timestamps && (
+                              <div>
+                                <span className="font-medium">Timestamp:</span>{" "}
+                                {src.timestamps}
+                              </div>
+                            )}
+                            {src.category && (
+                              <div>
+                                <span className="font-medium">Category:</span>{" "}
+                                {src.category}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {meta.timestamps && (
-                          <div>
-                            <span className="font-medium">TimeStamp:</span>{" "}
-                            {meta.timestamps}
-                          </div>
-                        )}
-                      </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-gray-500 italic pl-2">
+                          No sources available.
+                        </div>
+                      )}
                     </div>
                   ))
                 )
               ) : // 🔹 Mirrored Tools Flow
-              // 🔹 URL-aware Tools rendering
               Object.keys(openTools).length === 0 ? (
                 <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
                   No tools selected
                 </div>
               ) : (
-                Object.entries(openTools).map(([msgId, meta]: any) => {
-                  // meta.tools is string[]
-                  const tools: string[] = Array.isArray(meta.tools)
-                    ? meta.tools
-                    : [];
-                  const urlItems: string[] = [];
-                  const nonUrlTools: string[] = [];
-
-                  tools.forEach((t) => {
-                    const urls = extractUrls(String(t));
-                    if (urls.length) {
-                      urlItems.push(...urls);
-                    } else {
-                      nonUrlTools.push(String(t));
-                    }
-                  });
-
-                  return (
-                    <div
-                      key={msgId}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-3 shadow-sm"
-                    >
-                      <div className="text-sm font-medium text-gray-900 mb-2">
-                        {meta.query || "Tools used"}
-                      </div>
-
-                      {/* Non-URL tool badges */}
-                      {nonUrlTools.length > 0 && (
-                        <div className="mb-2 flex flex-wrap gap-2">
-                          {nonUrlTools.map((tool, i) => (
-                            <span
-                              key={`tool-${i}`}
-                              className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
-                            >
-                              {tool}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* URL links list */}
-                      {urlItems.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="text-xs font-semibold text-gray-600">
-                            Links
-                          </div>
-                          <ul className="space-y-1">
-                            {urlItems.map((url, i) => (
-                              <li key={`url-${i}`}>
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex max-w-full items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100 hover:underline break-all"
-                                  title={url}
-                                >
-                                  {url}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* If nothing recognizable, show a subtle fallback */}
-                      {nonUrlTools.length === 0 && urlItems.length === 0 && (
-                        <div className="text-xs text-gray-500">
-                          No tools reported.
-                        </div>
-                      )}
+                Object.entries(openTools).map(([msgId, meta]: any) => (
+                  <div
+                    key={msgId}
+                    className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm space-y-3"
+                  >
+                    {/* 🔹 Parent heading: the query */}
+                    <div className="text-sm font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">
+                      {meta.query ? `Query: ${meta.query}` : "Query"}
                     </div>
-                  );
-                })
+
+{Array.isArray(meta.sources) && meta.sources.length > 0 ? (
+  meta.sources.map((src: any, i: number) => {
+    // Filter only valid URLs
+    const validTools =
+      Array.isArray(src.tools) && src.tools.length
+        ? src.tools.filter((t: string) => /^https?:\/\//i.test(t))
+        : [];
+
+    // Skip entries with no valid tool URLs
+    if (validTools.length === 0) return null;
+
+    return (
+      <div
+        key={i}
+        className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
+      >
+        <div className="font-medium text-gray-800">
+          Tool {i + 1}: {src.source || "Unnamed Tool"}
+        </div>
+
+        <div className="mt-1 flex flex-wrap gap-2">
+          {validTools.map((tool: string, j: number) => {
+            const displayName = decodeURIComponent(tool.split("/").pop() || tool);
+            return (
+              <a
+                key={j}
+                href={tool}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100 hover:underline transition"
+              >
+                {displayName.length > 40
+                  ? displayName.slice(0, 40) + "..."
+                  : displayName}
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    );
+  })
+) : (
+  <div className="text-xs text-gray-500 italic pl-2">
+    No tools found.
+  </div>
+)}
+
+                  </div>
+                ))
               )}
             </div>
           </aside>

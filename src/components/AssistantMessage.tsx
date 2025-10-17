@@ -14,7 +14,15 @@ type Props = {
 };
 
 
-const AssistantMessage: React.FC<Props> = ({ text, isActive, onToggleSource, isToolsActive, onToggleTools }) => {
+const AssistantMessage: React.FC<Props> = ({
+  text,
+  meta,
+  isActive,
+  onToggleSource,
+  isToolsActive,
+  onToggleTools,
+}) => {
+
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard!");
@@ -64,17 +72,28 @@ const AssistantMessage: React.FC<Props> = ({ text, isActive, onToggleSource, isT
 
         </div>
 
-        {/* Timestamp + Copy */}
-        <div className="mt-1 flex items-center gap-3 text-[11px] text-gray-500 px-1">
-          <span>{new Date().toLocaleTimeString()}</span>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            <span>Copy</span>
-          </button>
-        </div>
+{/* Timestamp + Copy */}
+<div className="mt-1 flex items-center gap-3 text-[11px] text-gray-500 px-1">
+  <span>
+    {meta?.ai_timestamp
+      ? new Date(meta.ai_timestamp).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+  </span>
+  <button
+    onClick={handleCopy}
+    className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
+  >
+    <Copy className="h-3.5 w-3.5" />
+    <span>Copy</span>
+  </button>
+</div>
+
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { FaFacebookF } from "react-icons/fa";
 import biomeLogoImage from "@/assets/logo.png";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-
+import { Eye, EyeOff } from "lucide-react"; 
 const BASE_URL = import.meta.env.VITE_BASE_URL || process.env.Base_url;
 console.log(BASE_URL);
 
@@ -121,6 +121,7 @@ const Footer: React.FC = () => (
 
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -199,17 +200,31 @@ const LoginPage: React.FC = () => {
             </div>
 
             {/* Row 2 */}
-            <div className="md:col-span-1">
-              <Input
-                id="password"
-                name="password"
-                label="Password"
-                type="password"
-                placeholder="Password"
-                autoComplete="current-password"
-                required
-              />
-            </div>
+<div className="md:col-span-1 relative">
+  <Input
+    id="password"
+    name="password"
+    label="Password"
+    type={showPassword ? "text" : "password"}
+    placeholder="Password"
+    autoComplete="current-password"
+    required
+  />
+  <button
+    type="button"
+    onClick={() => setShowPassword((prev) => !prev)}
+    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+  >
+    {showPassword ? (
+      <Eye className="h-4 w-4" />
+    ) : (
+      (
+      <EyeOff className="h-4 w-4" />
+    )
+    )}
+  </button>
+</div>
+
             <div className="md:col-span-1">
               <a
                 href={`${BASE_URL}social-login/facebook`}
