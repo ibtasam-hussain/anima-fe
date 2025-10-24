@@ -1,3 +1,4 @@
+// src/App.tsx
 import { Toaster } from "react-hot-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,7 +9,17 @@ import Login from "./pages/loginPage";
 import Home from "./pages/home";
 import SocialLogin from "./pages/SocialLogin";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import { ThemeProvider } from "./contexts/ThemeContext";
+
+// 🧱 Admin Imports
+import AdminLayout from "@/layouts/AdminLayout";
+import AdminLogin from "./pages/admin/AdminLogin";
+import UsersPage from "@/pages/admin/UsersPage";
+import ProfilePage from "@/pages/admin/ProfilePage";
+import AdminsPage from "@/pages/admin/AdminsPage";
+import KnowledgeBasePage from "@/pages/admin/KnowledgeBasePage";
+import UnansweredPage from "@/pages/admin/UnansweredPage";
 
 const queryClient = new QueryClient();
 
@@ -19,9 +30,12 @@ const App = () => (
         <Toaster position="top-right" reverseOrder={false} />
         <BrowserRouter>
           <Routes>
+            {/* Public Routes */}
             <Route path="/signup" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/social-login" element={<SocialLogin />} />
+
+            {/* Protected User Home */}
             <Route
               path="/"
               element={
@@ -30,6 +44,27 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
+            {/* 🧱 Admin Panel Routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route
+              path="/admin/*"
+              element={
+                <AdminProtectedRoute>
+                  <AdminLayout>
+                    <Routes>
+                      <Route path="users" element={<UsersPage />} />
+                 <Route path="profile" element={<ProfilePage />} /> 
+                <Route path="admins" element={<AdminsPage />} />
+                      <Route path="knowledge" element={<KnowledgeBasePage />} />
+                      <Route path="unanswered" element={<UnansweredPage />} /> 
+                    </Routes>
+                  </AdminLayout>
+                </AdminProtectedRoute>
+              }
+            />
+
+            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
