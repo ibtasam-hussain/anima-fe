@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
-import PH from "@/assets/ph.jpg"; // placeholder image
+import PH from "@/assets/ph.jpg";
 
 const menuItems = [
   { name: "Users", icon: <Users className="h-4 w-4" />, path: "/admin/users" },
@@ -33,31 +33,48 @@ const menuItems = [
 const AdminSidebar: React.FC = () => {
   const navigate = useNavigate();
 
-  // 🧩 Get stored admin info
-  const adminData = JSON.parse(localStorage.getItem("adminUser") || "{}");
+  // ✅ load from localStorage
+  const initialData = JSON.parse(localStorage.getItem("adminUser") || "{}");
+  const [data, setData] = React.useState(initialData);
+
+  // ✅ Listen for profile update event
+  React.useEffect(() => {
+    const updateProfile = () => {
+      const latest = JSON.parse(localStorage.getItem("adminUser") || "{}");
+      setData(latest);
+    };
+
+    window.addEventListener("admin-profile-updated", updateProfile);
+    return () =>
+      window.removeEventListener("admin-profile-updated", updateProfile);
+  }, []);
+
   const adminName =
-    adminData?.firstName && adminData?.lastName
-      ? `${adminData.firstName} ${adminData.lastName}`
+    data?.firstName && data?.lastName
+      ? `${data.firstName} ${data.lastName}`
       : "Admin User";
-  const adminEmail = adminData?.email || "admin@biome.ai";
-  const profileImage = adminData?.profile
-    ? `${import.meta.env.VITE_IMAGE_URL}${adminData.profile}`
+
+  const adminEmail = data?.email || "admin@biome.ai";
+
+  const profileImage = data?.profile
+    ? `${import.meta.env.VITE_IMAGE_URL}${data.profile}`
     : PH;
 
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminData");
+    localStorage.removeItem("adminUser");
     navigate("/admin/login");
   };
 
   return (
     <aside className="h-screen w-[280px] shrink-0 rounded-2xl bg-white shadow-sm flex flex-col">
       {/* Logo */}
-      <div className="flex items-center justify-center py-6 border-b border-gray-100">
-        <img src={logo} alt="Biome Logo" className="h-12 object-contain" />
-      </div>
+<div className="flex items-center justify-center py-10 border-b border-gray-100">
+  <img src={logo} alt="Biome Logo" className="h-20 object-contain" />
+</div>
 
-      {/* Navigation Menu */}
+
+      {/* Menu */}
       <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
         {menuItems.map((item) => (
           <NavLink
@@ -77,7 +94,7 @@ const AdminSidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* 👇 Profile Section (Moved Down) */}
+      {/* Profile */}
       <div className="border-t border-gray-100 px-5 py-5 flex flex-col items-center text-center">
         <img
           src={profileImage}

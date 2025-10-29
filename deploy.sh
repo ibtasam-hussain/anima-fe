@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# PASSWORD : G2XMj;g9ovuHOOwwSt@h
+# PASSWORD : q&/65FMFJE'Vnu@H7V8H
 
-# === CONFIG ===
+# === SSH CONFIG ===
 SSH_USER="root"
-SSH_HOST="147.79.75.202"
+SSH_HOST="72.60.175.234"
 REMOTE_DIR="/var/www/biome/FE"
 
 echo "🧹 Cleaning up local node_modules and lock file..."
@@ -18,15 +18,16 @@ echo "🔐 Logging into server to deploy frontend..."
 ssh -t $SSH_USER@$SSH_HOST <<EOF
 cd $REMOTE_DIR
 
-echo "📦 Installing frontend dependencies..."
-npm install
+echo "🧹 Cleaning up remote node_modules and lock file..."
+rm -rf node_modules
+rm -f package-lock.json
 
-echo "🏗️ Building Next.js app..."
+echo "🚀 Deploying frontend..."
+npm install
 npm run build
 
-echo "🔁 Reloading Nginx..."
-systemctl reload nginx
+pm2 restart 1
+
 EOF
 
-echo "✅ Frontend deployed successfully!"
-read -p "Press Enter to exit..."
+echo "🎉 Frontend deployed successfully!"

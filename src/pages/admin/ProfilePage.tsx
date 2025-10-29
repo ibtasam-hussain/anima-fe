@@ -48,24 +48,32 @@ const ImageUrl = import.meta.env.VITE_IMAGE_URL as string;
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setProfile({ ...profile, [e.target.name]: e.target.value });
 
-  // ✅ Update profile
-  const handleSaveProfile = async () => {
-    try {
-      setLoading(true);
-      const formData = new FormData();
-      formData.append("firstName", profile.firstName);
-      formData.append("lastName", profile.lastName);
-      if (fileRef.current?.files?.[0])
-        formData.append("profilePic", fileRef.current.files[0]);
+const handleSaveProfile = async () => {
+  try {
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("firstName", profile.firstName);
+    formData.append("lastName", profile.lastName);
+    if (fileRef.current?.files?.[0])
+      formData.append("profilePic", fileRef.current.files[0]);
 
-      const res = await setupProfile(formData);
-      toast.success(res.message || "Profile updated");
-    } catch {
-      toast.error("Failed to update profile");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const res = await setupProfile(formData);
+
+    const updated = await getProfile();
+    localStorage.setItem("adminUser", JSON.stringify(updated.user));
+
+    // ✅ TRIGGER RELOAD EVENT
+    window.dispatchEvent(new Event("admin-profile-updated"));
+
+    toast.success(res.message || "Profile updated");
+  } catch {
+    toast.error("Failed to update profile");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   // ✅ Change password
   const handlePasswordChange = async () => {

@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import logo from "@/assets/logo.png";
-import { adminLogin } from "@/apis/userAndAdminApi"; // ✅ import API
+import { adminLogin } from "@/apis/userAndAdminApi";
+import { Eye, EyeOff } from "lucide-react";   // ✅ add icons
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);   // ✅ new state
   const [form, setForm] = useState({ email: "", password: "" });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,11 +25,9 @@ const AdminLogin: React.FC = () => {
       const data = await adminLogin(form);
       toast.success("Login successful ✅");
 
-      // 🪄 Save token for authenticated routes
       localStorage.setItem("adminToken", data.token);
       localStorage.setItem("adminUser", JSON.stringify(data.user));
 
-      // navigate to admin/users
       navigate("/admin/users");
     } catch (err: any) {
       const message =
@@ -50,6 +50,7 @@ const AdminLogin: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ✅ Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
@@ -64,20 +65,32 @@ const AdminLogin: React.FC = () => {
             />
           </div>
 
-          <div>
+          {/* ✅ Password with Hide/Show */}
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password
             </label>
+
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}   // ✅ toggle
               name="password"
               value={form.password}
               onChange={handleChange}
               placeholder="••••••••"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#3B68F6]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm outline-none focus:ring-2 focus:ring-[#3B68F6]"
             />
+
+            {/* 👁 Eye Icon */}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-[38px] transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
+          {/* ✅ Submit */}
           <button
             type="submit"
             disabled={loading}
