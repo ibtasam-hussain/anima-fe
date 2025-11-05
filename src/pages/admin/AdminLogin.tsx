@@ -42,11 +42,11 @@ const AdminLogin: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-[#e9f1f8] px-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-md p-8">
         <div className="flex flex-col items-center mb-6">
-          <img src={logo} alt="Biome Logo" className="h-12 w-auto mb-2" />
+          <img src={logo} alt="Biome Logo" className="h-18 w-auto mb-2" />
           <h1 className="text-[22px] font-semibold text-gray-900">
             Admin Login
           </h1>
-          <p className="text-sm text-gray-500">Welcome back, admin 👋</p>
+          <p className="text-sm text-gray-500">Welcome back, admin </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

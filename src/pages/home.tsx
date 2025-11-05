@@ -87,10 +87,25 @@ function ProfileModal({
 }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const firstNameRef = useRef<HTMLInputElement | null>(null);
   const user = JSON.parse(localStorage.getItem("user") || "null");
 
+  useEffect(() => {
+    if (open) firstNameRef.current?.focus();
+  }, [open]);
+
   if (!open) return null;
+
+  const handleOverlayClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    // close only if clicked on the overlay, not the card
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
+    if (e.key === "Escape") onClose();
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -101,11 +116,14 @@ function ProfileModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement;
-    const formData = new FormData(form);
+    if (submitting) return;
+    setSubmitting(true);
 
     try {
-      // 1️⃣ Update Profile
+      const form = e.currentTarget as HTMLFormElement;
+      const formData = new FormData(form);
+
+      // 1) Update Profile
       const res = await fetch(`${BaseUrl}users/setup-profile`, {
         method: "POST",
         body: formData,
@@ -121,7 +139,7 @@ function ProfileModal({
         setUser(data.user);
       }
 
-      // 2️⃣ Change Password (if provided)
+      // 2) Change Password (optional)
       if (newPassword.trim()) {
         const passRes = await fetch(`${BaseUrl}users/change-password`, {
           method: "POST",
@@ -143,28 +161,51 @@ function ProfileModal({
     } catch (err: any) {
       console.error("Profile update failed", err);
       toast.error(err.message || "Something went wrong");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-semibold mb-4">Update Profile</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-3"
+      onClick={handleOverlayClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-modal-title"
+    >
+      <div
+        className="w-full sm:w-[min(92vw,560px)] rounded-t-2xl sm:rounded-2xl bg-white shadow-lg
+                   max-h-[90svh] overflow-y-auto p-4 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h2 id="profile-modal-title" className="text-lg font-semibold">
+            Update Profile
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Profile Picture */}
+          {/* Avatar */}
           <div className="flex flex-col items-center gap-2">
             <button
               type="button"
               onClick={openFilePicker}
-              className="h-24 w-24 overflow-hidden rounded-full border border-gray-300 bg-gray-100 hover:brightness-95"
+              className="h-24 w-24 overflow-hidden rounded-full border border-gray-200 bg-gray-50 hover:brightness-95"
+              aria-label="Upload profile picture"
             >
               {preview ? (
-                <img
-                  src={preview}
-                  alt="Preview"
-                  className="h-full w-full object-cover"
-                />
+                <img src={preview} alt="Preview" className="h-full w-full object-cover" />
               ) : user?.profile ? (
                 <img
                   src={
@@ -177,7 +218,7 @@ function ProfileModal({
                 />
               ) : (
                 <span className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-                  Click to upload
+                  Tap to upload
                 </span>
               )}
             </button>
@@ -191,53 +232,56 @@ function ProfileModal({
             />
           </div>
 
-          {/* Name Fields */}
-          <input
-            type="text"
-            name="firstName"
-            placeholder={user?.firstName || "First Name"}
-            defaultValue={user?.firstName || ""}
-            className="w-full rounded-md border px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            name="lastName"
-            placeholder={user?.lastName || "Last Name"}
-            defaultValue={user?.lastName || ""}
-            className="w-full rounded-md border px-3 py-2 text-sm"
-          />
+          {/* Name Fields (stack on mobile, 2-cols on sm+) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              ref={firstNameRef}
+              type="text"
+              name="firstName"
+              placeholder={user?.firstName || "First Name"}
+              defaultValue={user?.firstName || ""}
+              className="w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
+            />
+            <input
+              type="text"
+              name="lastName"
+              placeholder={user?.lastName || "Last Name"}
+              defaultValue={user?.lastName || ""}
+              className="w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
+            />
+          </div>
 
           {/* Divider */}
           <div className="border-t my-3" />
 
-          {/* Password Change */}
+          {/* Password */}
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Change Password
-            </label>
+            <label className="block text-sm font-medium mb-1">Change Password</label>
             <input
               type="password"
               placeholder="Enter new password (optional)"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
             />
           </div>
 
-          {/* Buttons */}
-          <div className="flex justify-end gap-2 pt-2">
+          {/* Actions (stack mobile) */}
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border px-4 py-2 text-sm"
+              className="rounded-md border px-4 py-2 text-sm hover:bg-gray-50"
+              disabled={submitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-md bg-[#3B68F6] px-4 py-2 text-sm text-white"
+              className="rounded-md bg-[#3B68F6] px-4 py-2 text-sm text-white disabled:opacity-60"
+              disabled={submitting}
             >
-              Save
+              {submitting ? "Saving..." : "Save"}
             </button>
           </div>
         </form>
@@ -257,44 +301,83 @@ function CreateGroupModal({
   onCreateGroup: (groupName: string) => Promise<void>;
 }) {
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 
+  const handleOverlayClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
+    if (e.key === "Escape") onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || loading) return;
+    setLoading(true);
     await onCreateGroup(name.trim());
+    setLoading(false);
     setName("");
     onClose();
   };
 
-
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-semibold mb-4">Create New Group</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-3"
+      onClick={handleOverlayClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-group-title"
+    >
+      <div
+        className="w-full sm:w-[min(92vw,520px)] rounded-t-2xl sm:rounded-2xl bg-white shadow-lg
+                   max-h-[90svh] overflow-y-auto p-4 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h2 id="create-group-title" className="text-lg font-semibold">Create New Group</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
+            ref={inputRef}
             type="text"
             placeholder="Enter group name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-md border px-3 py-2 text-sm"
+            className="w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
           />
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border px-4 py-2 text-sm"
+              className="rounded-md border px-4 py-2 text-sm hover:bg-gray-50"
+              disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-md bg-[#3B68F6] px-4 py-2 text-sm text-white"
+              className="rounded-md bg-[#3B68F6] px-4 py-2 text-sm text-white disabled:opacity-60"
+              disabled={loading}
             >
-              Create
+              {loading ? "Creating..." : "Create"}
             </button>
           </div>
         </form>
@@ -314,8 +397,21 @@ function NewGroupModal({
   onConfirm: (name: string) => void;
 }) {
   const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
+
+  const handleOverlayClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
+    if (e.key === "Escape") onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,20 +425,44 @@ function NewGroupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">
-          Create New Group
-        </h2>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-3"
+      onClick={handleOverlayClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-group-title"
+    >
+      <div
+        className="w-full sm:w-[min(92vw,520px)] rounded-t-2xl sm:rounded-2xl bg-white shadow-lg
+                   max-h-[90svh] overflow-y-auto p-4 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h2 id="new-group-title" className="text-lg font-semibold text-gray-900">
+            Create New Group
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
+            ref={inputRef}
             type="text"
             placeholder="Enter group name..."
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm
+                       focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
           />
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
@@ -363,6 +483,7 @@ function NewGroupModal({
   );
 }
 
+
 function RenameModal({
   open,
   onClose,
@@ -379,52 +500,104 @@ function RenameModal({
   label: string;
 }) {
   const [value, setValue] = useState(initialValue);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setValue(initialValue);
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [open, initialValue]);
 
   if (!open) return null;
 
+  const handleOverlayClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
+    if (e.key === "Escape") onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!value.trim()) return toast.error("Name cannot be empty");
-    await onConfirm(value.trim());
+    const trimmed = value.trim();
+    if (!trimmed) return toast.error("Name cannot be empty");
+    setSaving(true);
+    await onConfirm(trimmed);
+    setSaving(false);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900">{title}</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-3"
+      onClick={handleOverlayClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rename-modal-title"
+    >
+      <div
+        className="w-full sm:w-[min(92vw,520px)] rounded-t-2xl sm:rounded-2xl bg-white shadow-lg
+                   max-h-[90svh] overflow-y-auto p-4 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h2 id="rename-modal-title" className="text-lg font-semibold text-gray-900">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border px-2 py-1 text-sm hover:bg-gray-50"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
+            ref={inputRef}
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={label}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm
+                       focus:ring-2 focus:ring-[#3B68F6] focus:border-[#3B68F6] outline-none"
           />
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+              disabled={saving}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-md bg-[#3B68F6] px-4 py-2 text-sm text-white hover:brightness-110"
+              className="rounded-md bg-[#3B68F6] px-4 py-2 text-sm text-white hover:brightness-110 disabled:opacity-60"
+              disabled={saving}
             >
-              Save
+              {saving ? "Saving..." : "Save"}
             </button>
           </div>
         </form>
       </div>
     </div>
+    
   );
 }
 
+
 // ---------- Main Component ----------
 const ChatApp: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [createGroupModalOpen, setCreateGroupModalOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -717,6 +890,7 @@ useEffect(() => {
 
       setCurrentChatId(chatId);
       localStorage.setItem("currentChatId", String(chatId)); // ✅ save chatId
+if (window.innerWidth < 768) setSidebarOpen(false);
 
       const list = await apiGetChatMessages(chatId);
       const mapped: ChatMessage[] = list.map((m: ApiMessage) => ({
@@ -872,702 +1046,696 @@ useEffect(() => {
   };
 
   // ---------- Render ----------
-  return (
-    <div className="min-h-screen w-full bg-[#e9f1f8] text-gray-900 antialiased overflow-x-hidden">
-      <div className="flex h-screen w-full gap-6 px-4 py-6 md:px-6">
-        {/* Sidebar */}
-        <aside
-          className={`relative shrink-0 rounded-2xl bg-white shadow-sm transition-all duration-300 ease-in-out ${
-            sidebarOpen ? "w-[300px]" : "w-16 overflow-hidden"
-          }`}
-        >
-          {/* Sidebar Body */}
-          <div className="flex h-full flex-col overflow-hidden">
-            {/* Logo */}
-            <div
-              className={`flex items-center ${
-                sidebarOpen ? "px-5 pt-6 pb-3" : "justify-center py-4"
-              }`}
-            >
-              {sidebarOpen && (
-                <img
-                  src={logo}
-                  alt="MICROBIOME"
-                  className="w-60 max-w-full h-auto mb-4 object-contain"
-                />
-              )}
+return (
+  <div className="min-h-screen w-full bg-[#e9f1f8] text-gray-900 antialiased overflow-x-hidden">
+    {/* Mobile overlay for Sidebar */}
+    <div
+      className={`fixed inset-0 z-40 bg-black/40 md:hidden transition-opacity ${
+        sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}
+      onClick={() => setSidebarOpen(false)}
+    />
+
+    {/* Mobile overlay for Right Pane */}
+    {rightPaneVisible && !showLanding && (
+      <div
+        className="fixed inset-0 z-30 bg-black/40 md:hidden"
+        onClick={() => setRightPaneVisible(false)}
+      />
+    )}
+
+    <div className="relative flex h-screen w-full gap-3 md:gap-6 px-2 py-3 md:px-6 md:py-6">
+      {/* Sidebar (Off-canvas on mobile, compact/expanded on desktop) */}
+      <aside
+        className={[
+          "bg-white shadow-sm transition-all duration-300 ease-in-out",
+          "fixed md:relative z-50 md:z-0 inset-y-0 left-0",
+          "transform md:transform-none",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          "md:translate-x-0",
+          "w-[82vw] max-w-[320px] md:w-auto",
+          sidebarOpen ? "md:w-[300px]" : "md:w-16 md:overflow-hidden",
+          "rounded-none md:rounded-2xl",
+        ].join(" ")}
+      >
+        {/* Sidebar Body */}
+        <div className="flex h-full flex-col overflow-hidden">
+          {/* Logo */}
+          <div
+            className={`flex items-center ${
+              sidebarOpen ? "px-5 pt-6 pb-3" : "justify-center py-4"
+            }`}
+          >
+{/* ✅ Close button (center right inside sidebar) */}
+{sidebarOpen && (
+  <button
+    onClick={() => setSidebarOpen(false)}
+    className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2
+               rounded-full bg-white border border-gray-200 p-2 shadow-md
+               hover:bg-gray-100 md:hidden z-[100]"
+  >
+    <ChevronLeft className="h-4 w-4 text-gray-700" />
+  </button>
+)}
+
+
+
+
+          </div>
+
+          {/* Scrollable Section */}
+          <div className="flex-1 overflow-y-auto px-3 pb-5">
+            {/* New Chat Button */}
+            <div className={sidebarOpen ? "px-2 pb-4" : "flex justify-center pb-4"}>
+              <button
+                onClick={() => setCreateGroupModalOpen(true)}
+                className={`flex items-center justify-center gap-2 h-12 rounded-full bg-[#3B68F6] text-white font-semibold shadow-sm hover:brightness-110 active:brightness-105 transition ${
+                  sidebarOpen ? "w-full px-4 text-[15px]" : "w-10"
+                }`}
+              >
+                <Plus className="h-5 w-5" />
+                {sidebarOpen && <span>Start a new chat</span>}
+              </button>
             </div>
 
-            {/* Scrollable Section */}
-            <div className="flex-1 overflow-y-auto px-3 pb-5">
-              {/* New Chat Button */}
-              <div
-                className={
-                  sidebarOpen ? "px-2 pb-4" : "flex justify-center pb-4"
-                }
-              >
-                <button
-                  onClick={() => setCreateGroupModalOpen(true)}
-                  className={`flex items-center justify-center gap-2 h-12 rounded-full bg-[#3B68F6] text-white font-semibold shadow-sm hover:brightness-110 active:brightness-105 transition ${
-                    sidebarOpen ? "w-full px-4 text-[15px]" : "w-10"
-                  }`}
-                >
-                  <Plus className="h-5 w-5" />
-                  {sidebarOpen && <span>Start a new chat</span>}
-                </button>
-              </div>
+            {/* Groups List */}
+            <div className="space-y-3">
+              {groups.length === 0 ? (
+                <div className="mx-2 rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
+                  No groups yet
+                </div>
+              ) : (
+                groups.map((group) => {
+                  const isOpen = openGroupIds.includes(group.id);
+                  const groupChats = chatList.filter((c) => c.groupId === group.id);
 
-              {/* Groups List */}
-              <div className="space-y-3">
-                {groups.length === 0 ? (
-                  <div className="mx-2 rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
-                    No groups yet
-                  </div>
-                ) : (
-                  groups.map((group) => {
-                    const isOpen = openGroupIds.includes(group.id);
-
-                    const groupChats = chatList.filter(
-                      (c) => c.groupId === group.id
-                    );
-
-                    return (
-                      <div
-                        key={group.id}
-                        className="rounded-2xl bg-white border border-gray-200 shadow-sm relative"
-                      >
-                        <div className="relative">
-                          <button
-                            onClick={() => {
-                              setCurrentGroupId(isOpen ? null : group.id);
-                              setOpenGroupIds((prev) =>
-                                prev.includes(group.id)
-                                  ? prev.filter((id) => id !== group.id)
-                                  : [...prev, group.id]
-                              );
-                              localStorage.setItem(
-                                "currentGroupId",
-                                String(group.id)
-                              );
-                            }}
-                            className="flex w-full items-center justify-between px-4 py-3 text-[15px] font-medium text-gray-900 hover:bg-gray-50 transition"
-                          >
-                            <div className="flex items-center gap-2">
-                              <MessageSquareText className="h-4 w-4 text-gray-600" />
-                              <span>{group.name}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Ellipsis
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setMenuOpenGroupId(
-                                    menuOpenGroupId === group.id
-                                      ? null
-                                      : group.id
-                                  );
-                                }}
-                                className="h-4 w-4 text-gray-500 hover:text-gray-700 cursor-pointer"
-                              />
-                              {isOpen ? (
-                                <ChevronLeft className="h-4 w-4 text-gray-500" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-gray-500" />
-                              )}
-                            </div>
-                          </button>
-
-                          {/* Dropdown Menu */}
-                          {menuOpenGroupId === group.id && (
-                            <div
-                                ref={groupMenuRef}
-                              className="absolute right-4 top-10 z-[9999] w-32 rounded-md border bg-white shadow-xl"
-                              style={{
-                                transform: "translateY(0)",
-                                position: "absolute",
+                  return (
+                    <div
+                      key={group.id}
+                      className="rounded-2xl bg-white border border-gray-200 shadow-sm relative"
+                    >
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            setCurrentGroupId(isOpen ? null : group.id);
+                            setOpenGroupIds((prev) =>
+                              prev.includes(group.id)
+                                ? prev.filter((id) => id !== group.id)
+                                : [...prev, group.id]
+                            );
+                            localStorage.setItem("currentGroupId", String(group.id));
+                          }}
+                          className="flex w-full items-center justify-between px-4 py-3 text-[15px] font-medium text-gray-900 hover:bg-gray-50 transition"
+                        >
+                          <div className="flex items-center gap-2">
+                            <MessageSquareText className="h-4 w-4 text-gray-600" />
+                            <span>{group.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Ellipsis
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenGroupId(menuOpenGroupId === group.id ? null : group.id);
                               }}
-                            >
-                              <button
-                                onClick={() => {
-                                  setRenameTarget({
-                                    type: "group",
-                                    id: group.id,
-                                    currentName: group.name,
-                                  });
-                                  setRenameModalOpen(true);
-                                  setMenuOpenGroupId(null);
-                                }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                              >
-                                <Pencil className="h-4 w-4" /> Rename
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    await deleteGroup(group.id);
-
-                                    // 🧠 Remove chats of this group
-                                    setChatList((prev) =>
-                                      prev.filter((c) => c.groupId !== group.id)
-                                    );
-
-                                    // 🧠 Clear active state if this group was open
-                                    if (currentGroupId === group.id) {
-                                      setCurrentGroupId(null);
-                                      setCurrentChatId(null);
-                                      setMessages([]);
-                                      setRightPaneVisible(false);
-                                      localStorage.removeItem("currentGroupId");
-                                      localStorage.removeItem("currentChatId");
-                                    }
-
-                                    // 🧠 Remove the group itself
-                                    setGroups((prev) =>
-                                      prev.filter((g) => g.id !== group.id)
-                                    );
-
-                                    toast.success(
-                                      "Group and its chats deleted successfully"
-                                    );
-                                  } catch (err: any) {
-                                    toast.error("Failed to delete group");
-                                    console.error(err);
-                                  } finally {
-                                    setMenuOpenGroupId(null);
-                                  }
-                                }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                              >
-                                <Trash2 className="h-4 w-4" /> Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Chats inside the group */}
-                        {isOpen && (
-                          <div className="border-t border-gray-100 bg-gray-50/40">
-                            {groupChats.length === 0 ? (
-                              <div className="text-xs text-gray-400 italic px-4 py-3">
-                                No chats yet
-                              </div>
+                              className="h-4 w-4 text-gray-500 hover:text-gray-700 cursor-pointer"
+                            />
+                            {isOpen ? (
+                              <ChevronLeft className="h-4 w-4 text-gray-500" />
                             ) : (
-                              groupChats.map((chat) => {
-                                const active = chat.id === currentChatId;
-                                return (
-                                  <div
-                                    key={chat.id}
-                                    onClick={() => openChat(chat.id)}
-                                    className={`group relative flex items-center justify-between rounded-lg mx-3 my-1 px-3 py-2 cursor-pointer transition ${
-                                      active
-                                        ? "bg-[#EEF2FF] text-[#3B68F6]"
-                                        : "hover:bg-gray-100 text-gray-800"
-                                    }`}
-                                  >
-                                    <div>
-                                      <div className="font-medium  border-black text-[14px]">
-                                        {chat.title}
-                                      </div>
-                                    </div>
-
-                                    {/* Menu */}
-                                    <Ellipsis
-                                      className="h-4 w-4 text-gray-400 hover:text-gray-600"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setMenuOpenChatId(
-                                          menuOpenChatId === chat.id
-                                            ? null
-                                            : chat.id
-                                        );
-                                      }}
-                                    />
-
-                                    {menuOpenChatId === chat.id && (
-                                      <div 
-                                      ref={groupMenuRef}
-                                      className="absolute right-4 top-9 w-32 rounded-md border bg-white shadow-lg z-10">
-                                        <button
-                                          onClick={() => {
-                                            setRenameTarget({
-                                              type: "chat",
-                                              id: chat.id,
-                                              currentName: chat.title,
-                                            });
-                                            setRenameModalOpen(true);
-                                            setMenuOpenChatId(null);
-                                          }}
-                                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                        >
-                                          <Pencil className="h-4 w-4" /> Rename
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            handleDeleteChat(chat.id)
-                                          }
-                                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                                        >
-                                          <Trash2 className="h-4 w-4" /> Delete
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
                             )}
+                          </div>
+                        </button>
 
-                            {/* Add Chat Button */}
+                        {/* Group Dropdown Menu */}
+                        {menuOpenGroupId === group.id && (
+                          <div
+                            ref={groupMenuRef}
+                            className="absolute right-4 top-10 z-[9999] w-32 rounded-md border bg-white shadow-xl"
+                          >
                             <button
-                              onClick={() => handleAddChatToGroup(group.id)}
-                              className="m-3 flex w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:bg-gray-50 transition"
+                              onClick={() => {
+                                setRenameTarget({
+                                  type: "group",
+                                  id: group.id,
+                                  currentName: group.name,
+                                });
+                                setRenameModalOpen(true);
+                                setMenuOpenGroupId(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                             >
-                              <Plus className="h-4 w-4" />
-                              Add Chat
+                              <Pencil className="h-4 w-4" /> Rename
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await deleteGroup(group.id);
+                                  setChatList((prev) =>
+                                    prev.filter((c) => c.groupId !== group.id)
+                                  );
+                                  if (currentGroupId === group.id) {
+                                    setCurrentGroupId(null);
+                                    setCurrentChatId(null);
+                                    setMessages([]);
+                                    setRightPaneVisible(false);
+                                    localStorage.removeItem("currentGroupId");
+                                    localStorage.removeItem("currentChatId");
+                                  }
+                                  setGroups((prev) => prev.filter((g) => g.id !== group.id));
+                                  toast.success("Group and its chats deleted successfully");
+                                } catch (err: any) {
+                                  toast.error("Failed to delete group");
+                                  console.error(err);
+                                } finally {
+                                  setMenuOpenGroupId(null);
+                                }
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              <Trash2 className="h-4 w-4" /> Delete
                             </button>
                           </div>
                         )}
                       </div>
-                    );
-                  })
-                )}
+
+                      {/* Chats inside the group */}
+                      {isOpen && (
+                        <div className="border-t border-gray-100 bg-gray-50/40">
+                          {groupChats.length === 0 ? (
+                            <div className="text-xs text-gray-400 italic px-4 py-3">
+                              No chats yet
+                            </div>
+                          ) : (
+                            groupChats.map((chat) => {
+                              const active = chat.id === currentChatId;
+                              return (
+                                <div
+                                  key={chat.id}
+                                  onClick={() => openChat(chat.id)}
+                                  className={`group relative flex items-center justify-between rounded-lg mx-3 my-1 px-3 py-2 cursor-pointer transition ${
+                                    active
+                                      ? "bg-[#EEF2FF] text-[#3B68F6]"
+                                      : "hover:bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="font-medium text-[14px]">
+                                      {chat.title}
+                                    </div>
+                                  </div>
+
+                                  {/* Chat Menu */}
+                                  <Ellipsis
+                                    className="h-4 w-4 text-gray-400 hover:text-gray-600"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setMenuOpenChatId(menuOpenChatId === chat.id ? null : chat.id);
+                                    }}
+                                  />
+
+                                  {menuOpenChatId === chat.id && (
+                                    <div
+                                      ref={chatMenuRef}
+                                      className="absolute right-4 top-9 w-32 rounded-md border bg-white shadow-lg z-10"
+                                    >
+                                      <button
+                                        onClick={() => {
+                                          setRenameTarget({
+                                            type: "chat",
+                                            id: chat.id,
+                                            currentName: chat.title,
+                                          });
+                                          setRenameModalOpen(true);
+                                          setMenuOpenChatId(null);
+                                        }}
+                                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                      >
+                                        <Pencil className="h-4 w-4" /> Rename
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteChat(chat.id)}
+                                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="h-4 w-4" /> Delete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+
+                          {/* Add Chat Button */}
+                          <button
+                            onClick={() => handleAddChatToGroup(group.id)}
+                            className="m-3 flex w-[calc(100%-1.5rem)] items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:bg-gray-50 transition"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add Chat
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Footer / Profile & Logout */}
+          {sidebarOpen ? (
+            <div className="space-y-3 border-t border-gray-100 px-5 py-5">
+              <div
+                className="flex items-center justify-between rounded-xl border border-gray-200 p-3 hover:bg-gray-50"
+                onClick={() => setProfileModalOpen(true)}
+                role="button"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={
+                      user?.profile && user.profile.trim() && user.profile !== "null"
+                        ? user.profile.startsWith("http")
+                          ? user.profile
+                          : `${ImageUrl}${user.profile}`
+                        : PH
+                    }
+                    alt="User"
+                    className="h-9 w-9 rounded-full object-cover"
+                  />
+                  <div>
+                    <div className="text-[14px] font-semibold text-gray-900">
+                      {user?.firstName} {user?.lastName}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProfileModalOpen(true);
+                  }}
+                  className="ml-2 inline-flex items-center rounded-md p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                  aria-label="Open settings"
+                  title="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-red-600 hover:bg-red-100"
+              >
+                <Power className="h-4 w-4" />
+                <span className="text-[14px]">Log out Account</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-2 py-4">
+              <UserRound onClick={() => setProfileModalOpen(true)} className="h-4 w-4 cursor-pointer" />
+              <SunMedium onClick={handleThemeToggle} className="h-4 w-4 text-gray-600 cursor-pointer" />
+              <Power onClick={handleLogout} className="h-4 w-4 text-red-500 cursor-pointer" />
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Chat Section */}
+    <section className="flex flex-col flex-1 rounded-2xl bg-[#e9f1f8] overflow-hidden relative">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-2 rounded-t-2xl border-b border-gray-200 bg-[#e9f1f8] px-3 py-3 md:px-6">
+          {/* Mobile toggle for Sidebar */}
+          <button
+            className="md:hidden inline-flex items-center justify-center rounded-full border border-gray-300 bg-white p-2 hover:bg-gray-50"
+            onClick={() => setSidebarOpen((s) => !s)}
+            aria-label="Toggle sidebar"
+          >
+            {sidebarOpen ? (
+              <ChevronLeft className="h-4 w-4 text-gray-500" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-gray-500" />
+            )}
+          </button>
+
+          <h1 className="mx-2 text-[16px] md:text-[20px] font-semibold truncate max-w-[55vw] md:max-w-none">
+            {currentChat?.title || ""}
+          </h1>
+
+          {/* Right pane toggle */}
+          {!showLanding && (
+            <button
+              className="inline-flex rounded-full border border-gray-300 bg-white p-2 hover:bg-gray-50 transition ml-auto"
+              onClick={() => setRightPaneVisible((s) => !s)}
+              aria-label={rightPaneVisible ? "Collapse Resources" : "Expand Resources"}
+            >
+              {rightPaneVisible ? (
+                <ChevronDown className="h-4 w-4 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-gray-500" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-3 md:px-8 py-4 md:py-5">
+          {showLanding ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="mx-auto max-w-5xl text-center">
+                <div className="flex flex-col items-center justify-center py-10 md:py-16">
+                  <img
+                    src={logoBiome}
+                    alt="MCSC"
+                    className="h-16 w-16 md:h-24 md:w-24 opacity-95 mb-5"
+                  />
+                  <h1 className="text-3xl md:text-5xl font-bold mb-2 md:mb-3">
+                    Welcome to MCSC
+                  </h1>
+                  <p className="max-w-2xl text-gray-500 text-sm md:text-lg">
+                    Your AI-powered learning companion. Ask questions, explore concepts,
+                    and master new skills through interactive conversations.
+                  </p>
+                </div>
               </div>
             </div>
-            {sidebarOpen ? (
-              <div className="space-y-3 border-t border-gray-100 px-5 py-5">
-                <div
-                  className="flex items-center justify-between rounded-xl border border-gray-200 p-3 hover:bg-gray-50"
-                  onClick={() => setProfileModalOpen(true)}
-                  role="button"
-                >
-                  {/* Left: avatar + name */}
-                  <div className="flex items-center gap-3">
+          ) : (
+            <div className="space-y-4 sm:space-y-6">
+              {messages.map((m) =>
+                m.role === "user" ? (
+                  <div key={m.id} className="flex justify-end items-end gap-2">
+                    <div className="flex w-fit max-w-[85%] sm:max-w-xl md:max-w-2xl rounded-md bg-[#3B68F6] px-4 py-3 text-sm sm:text-base text-white shadow">
+                      <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                    </div>
                     <img
                       src={
-                        user?.profile &&
-                        user.profile.trim() &&
-                        user.profile !== "null"
+                        user?.profile && user.profile.trim() && user.profile !== "null"
                           ? user.profile.startsWith("http")
                             ? user.profile
                             : `${ImageUrl}${user.profile}`
                           : PH
                       }
                       alt="User"
-                      className="h-9 w-9 rounded-full object-cover"
+                      className="h-8 w-8 rounded-full object-cover ring-2 ring-white"
                     />
-                    <div>
-                      <div className="text-[14px] font-semibold text-gray-900">
-                        {user?.firstName} {user?.lastName}
-                      </div>
-                    </div>
                   </div>
-
-                  {/* Right: settings icon */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // parent click se bachao
-                      setProfileModalOpen(true);
+                ) : (
+                  <AssistantMessage
+                    key={m.id}
+                    text={m.content}
+                    meta={m.meta}
+                    isActive={!!openSources[m.id]}
+                    onToggleSource={() => {
+                      setOpenSources((prev) => {
+                        const next = { ...prev } as any;
+                        if (next[m.id]) delete next[m.id];
+                        else if (m.meta) next[m.id] = m.meta;
+                        return next;
+                      });
+                      setRightPaneVisible(true);
+                      setRightTab("Content");
                     }}
-                    className="ml-2 inline-flex items-center rounded-md p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                    aria-label="Open settings"
-                    title="Settings"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-red-600 hover:bg-red-100"
-                >
-                  <Power className="h-4 w-4" />
-                  <span className="text-[14px]">Log out Account</span>
-                </button>
-              </div>
-            ) : (
-              /* ...collapsed state as-is... */
-              <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-2 py-4">
-                <UserRound
-                  onClick={() => setProfileModalOpen(true)}
-                  className="h-4 w-4 cursor-pointer"
-                />
-                <SunMedium
-                  onClick={handleThemeToggle}
-                  className="h-4 w-4 text-gray-600 cursor-pointer"
-                />
-                <Power
-                  onClick={handleLogout}
-                  className="h-4 w-4 text-red-500 cursor-pointer"
-                />
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Chat Section */}
-        <section className="flex min-h-[84vh] flex-1 flex-col rounded-2xl bg-[#e9f1f8] overflow-hidden">
-          <div className="flex items-center justify-center rounded-t-2xl border-b border-gray-200 bg-[#e9f1f8] px-4 py-4 md:px-6">
-            <h1 className="mx-auto text-center text-[20px] font-semibold md:text-[22px] flex-1">
-              {currentChat?.title || ""}
-            </h1>
-            {!showLanding && (
-              <button
-                className="rounded-full border border-gray-300 bg-white p-2 hover:bg-gray-50 transition"
-                onClick={() => setRightPaneVisible((s) => !s)}
-                aria-label={
-                  rightPaneVisible ? "Collapse Resources" : "Expand Resources"
-                }
-              >
-                {rightPaneVisible ? (
-                  <ChevronDown className="h-4 w-4 text-gray-500" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-gray-500" />
-                )}
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4 py-5 md:px-8">
-            {showLanding ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="mx-auto max-w-5xl text-center">
-                  <div className="flex flex-col items-center justify-center py-12 md:py-16">
-                    <img
-                      src={logoBiome}
-                      alt="MCSC"
-                      className="h-20 w-20 md:h-24 md:w-24 opacity-95 mb-6"
-                    />
-                    <h1 className="text-4xl md:text-5xl font-bold mb-3">
-                      Welcome to MCSC
-                    </h1>
-                    <p className="max-w-2xl text-gray-500 text-base md:text-lg">
-                      Your AI-powered learning companion. Ask questions, explore
-                      concepts, and master new skills through interactive
-                      conversations.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {messages.map((m) =>
-                  m.role === "user" ? (
-                    <div
-                      key={m.id}
-                      className="flex justify-end items-end gap-2"
-                    >
-                      <div className="flex w-fit max-w-xl rounded-md bg-[#3B68F6] px-4 py-3 text-md text-white shadow">
-                        <span>{m.content}</span>
-                      </div>
-                      <img
-                        src={
-                          user?.profile &&
-                          user.profile.trim() &&
-                          user.profile !== "null"
-                            ? user.profile.startsWith("http")
-                              ? user.profile
-                              : `${ImageUrl}${user.profile}`
-                            : PH
+                    isToolsActive={!!openTools[m.id]}
+                    onToggleTools={() => {
+                      setOpenTools((prev) => {
+                        const next: any = { ...prev };
+                        if (next[m.id]) {
+                          delete next[m.id];
+                        } else if (m.meta) {
+                          const allSources = Array.isArray(m.meta.sources)
+                            ? m.meta.sources.map((src: any) => ({
+                                source: src.source,
+                                tools: Array.isArray(src.tools) ? src.tools : src.tools ? [src.tools] : [],
+                              }))
+                            : [];
+                          next[m.id] = {
+                            query: m.meta?.query || null,
+                            sources: allSources,
+                          };
                         }
-                        alt="User"
-                        className="h-8 w-8 rounded-full object-cover ring-2 ring-white"
-                      />
-                    </div>
-                  ) : (
-                    <AssistantMessage
-                      key={m.id}
-                      text={m.content}
-                      meta={m.meta}
-                      isActive={!!openSources[m.id]}
-                      onToggleSource={() => {
-                        setOpenSources((prev) => {
-                          const next = { ...prev };
-                          if (next[m.id]) delete next[m.id];
-                          else if (m.meta) next[m.id] = m.meta;
-                          return next;
-                        });
-                        setRightPaneVisible(true);
-                        setRightTab("Content");
-                      }}
-                      isToolsActive={!!openTools[m.id]}
-                      onToggleTools={() => {
-                        // 🧩 paste THIS fixed code exactly here:
-                        setOpenTools((prev) => {
-                          const next = { ...prev };
-
-                          if (next[m.id]) {
-                            // toggle off
-                            delete next[m.id];
-                          } else if (m.meta) {
-                            // ✅ Extract all sources and their tools
-                            const allSources = Array.isArray(m.meta.sources)
-                              ? m.meta.sources.map((src) => ({
-                                  source: src.source,
-                                  tools: Array.isArray(src.tools)
-                                    ? src.tools
-                                    : src.tools
-                                    ? [src.tools]
-                                    : [],
-                                }))
-                              : [];
-
-                            next[m.id] = {
-                              query: m.meta.query || null,
-                              sources: allSources,
-                            };
-                          }
-
-                          return next;
-                        });
-
-                        setRightPaneVisible(true);
-                        setRightTab("Tools");
-                      }}
-                    />
-                  )
-                )}
-                {isTyping && (
-                  <div className="flex items-start">
-                    <div className="flex w-fit max-w-xs items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 shadow">
-                      <TypingIndicator />
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-            )}
-          </div>
-
-          <div className="sticky bottom-4 mx-auto -mb-1 w-[94%] max-w-[1050px]">
-            <form
-              onSubmit={handleSubmit}
-              className="flex items-center gap-3 rounded-full border border-gray-300 bg-white px-5 py-3 shadow-sm"
-            >
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="What’s in your mind?"
-                className="w-full bg-transparent text-[15px] outline-none placeholder:text-gray-400"
-              />
-              <button
-                type="submit"
-                disabled={loadingSend}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3B68F6] text-white hover:brightness-110 disabled:opacity-60"
-              >
-                <SendHorizonal className="h-5 w-5" />
-              </button>
-            </form>
-          </div>
-        </section>
-
-        {/* Right Pane */}
-        {rightPaneVisible && !showLanding && (
-          <aside
-            className={`transition-all duration-300 ease-in-out ${
-              rightPaneVisible
-                ? "w-[350px] opacity-100"
-                : "w-0 opacity-0 pointer-events-none"
-            } shrink-0 rounded-2xl border border-gray-200 bg-[#f4f7fb] shadow-sm lg:block`}
-          >
-            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-              <h2 className="text-[18px] font-semibold">Resources</h2>
-            </div>
-            <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
-              <div className="flex w-full rounded-full bg-gray-100 p-1">
-                <button
-                  onClick={() => setRightTab("Content")}
-                  className={`flex-1 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm transition ${
-                    rightTab === "Content"
-                      ? "bg-gray-200 text-gray-900 font-medium"
-                      : "text-gray-500 hover:text-gray-900"
-                  }`}
-                >
-                  <PlayCircle className="h-4 w-4" />
-                  Sources
-                </button>
-
-                <button
-                  onClick={() => setRightTab("Tools")}
-                  className={`flex-1 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm transition ${
-                    rightTab === "Tools"
-                      ? "bg-gray-200 text-gray-900 font-medium"
-                      : "text-gray-500 hover:text-gray-900"
-                  }`}
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                  Tools
-                </button>
-              </div>
-            </div>
-
-            <div className="h-[calc(100%-120px)] overflow-y-auto px-4 py-4 space-y-4">
-              {rightTab === "Content" ? (
-                Object.keys(openSources).length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
-                    No sources selected
-                  </div>
-                ) : (
-                  Object.entries(openSources).map(([msgId, meta]: any) => (
-                    <div
-                      key={msgId}
-                      className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm space-y-3"
-                    >
-                      {/* 🔹 Parent heading: the query */}
-                      <div className="text-sm font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">
-                        {meta.query ? `Query: ${meta.query}` : "Query"}
-                      </div>
-
-                      {/* 🔹 List of sources under that query */}
-                      {Array.isArray(meta.sources) &&
-                      meta.sources.length > 0 ? (
-                        meta.sources.map((src: any, i: number) => (
-                          <div
-                            key={i}
-                            className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
-                          >
-                            <div className="font-medium text-gray-800">
-                              Source {i + 1}
-                            </div>
-                            {src.where_to_find && (
-                              <div>
-                                <span className="font-medium">Where:</span>{" "}
-                                {src.where_to_find}
-                              </div>
-                            )}
-                            {src.timestamps && (
-                              <div>
-                                <span className="font-medium">Timestamp:</span>{" "}
-                                {src.timestamps}
-                              </div>
-                            )}
-                            {src.category && (
-                              <div>
-                                <span className="font-medium">Category:</span>{" "}
-                                {src.category}
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-gray-500 italic pl-2">
-                          No sources available.
-                        </div>
-                      )}
-                    </div>
-                  ))
+                        return next;
+                      });
+                      setRightPaneVisible(true);
+                      setRightTab("Tools");
+                    }}
+                  />
                 )
-              ) : // 🔹 Mirrored Tools Flow
-              Object.keys(openTools).length === 0 ? (
+              )}
+              {isTyping && (
+                <div className="flex items-start">
+                  <div className="flex w-fit max-w-xs items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 shadow">
+                    <TypingIndicator />
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Composer */}
+<div className="sticky bottom-0 left-0 right-0 bg-[#e9f1f8] pb-3 pt-2 px-3 md:px-6">
+  <form
+    onSubmit={handleSubmit}
+    className="flex items-center gap-2 sm:gap-3 rounded-full border border-gray-300 bg-white px-3 sm:px-5 py-2.5 sm:py-3 shadow-sm"
+  >
+    <input
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      placeholder="What’s in your mind?"
+      className="w-full bg-transparent text-[15px] outline-none placeholder:text-gray-400"
+    />
+    <button
+      type="submit"
+      disabled={loadingSend}
+      className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3B68F6] text-white hover:brightness-110 disabled:opacity-60"
+      aria-label="Send message"
+    >
+      <SendHorizonal className="h-5 w-5" />
+    </button>
+  </form>
+</div>
+
+      </section>
+
+      {/* Right Pane (drawer on mobile, static on desktop) */}
+      {rightPaneVisible && !showLanding && (
+        <aside
+          className={["rounded-none md:rounded-2xl relative",
+
+
+            "transition-transform duration-300 ease-in-out shrink-0 ",
+            "fixed md:static z-40 md:z-0 inset-y-0 right-0",
+            "transform md:transform-none translate-x-0 md:translate-x-0",
+            "w-[88vw] max-w-[380px] md:w-[350px]",
+            "rounded-l-2xl md:rounded-2xl border border-gray-200 bg-[#f4f7fb] shadow-sm",
+          ].join(" ")}
+        >
+
+          {/* Mobile Close Icon - Left Sidebar */}
+{sidebarOpen && (
+  <button
+    onClick={() => setSidebarOpen(false)}
+    className="absolute top-1/2 -translate-y-1/2 -right-4 md:hidden z-[100]
+               rounded-full bg-gray-100 p-2 shadow hover:bg-gray-200 border border-gray-200"
+  >
+    <ChevronLeft className="h-5 w-5 text-gray-600" />
+  </button>
+)}
+
+          {/* Center Close Icon (vertically middle of the pane) */}
+<button
+  onClick={() => setRightPaneVisible(false)}
+  className="absolute top-1/2 -translate-y-1/2 -left-4 md:hidden z-[100]
+             rounded-full bg-gray-100 p-2 shadow hover:bg-gray-200 border border-gray-200"
+>
+  <ChevronRight className="h-5 w-5 text-gray-600" />
+</button>
+<div className="relative border-b border-gray-200 px-5 py-4 text-center">
+  <h2 className="text-[18px] font-semibold">Resources</h2>
+
+
+</div>
+
+          <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
+            <div className="flex w-full rounded-full bg-gray-100 p-1">
+              <button
+                onClick={() => setRightTab("Content")}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm transition ${
+                  rightTab === "Content"
+                    ? "bg-gray-200 text-gray-900 font-medium"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                <PlayCircle className="h-4 w-4" />
+                Sources
+              </button>
+
+              <button
+                onClick={() => setRightTab("Tools")}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm transition ${
+                  rightTab === "Tools"
+                    ? "bg-gray-200 text-gray-900 font-medium"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                <DownloadIcon className="h-4 w-4" />
+                Tools
+              </button>
+            </div>
+          </div>
+
+          <div className="h-[calc(100%-120px)] overflow-y-auto px-4 py-4 space-y-4">
+            {rightTab === "Content" ? (
+              Object.keys(openSources).length === 0 ? (
                 <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
-                  No tools selected
+                  No sources selected
                 </div>
               ) : (
-                Object.entries(openTools).map(([msgId, meta]: any) => (
+                Object.entries(openSources).map(([msgId, meta]: any) => (
                   <div
                     key={msgId}
                     className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm space-y-3"
                   >
-                    {/* 🔹 Parent heading: the query */}
                     <div className="text-sm font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">
                       {meta.query ? `Query: ${meta.query}` : "Query"}
                     </div>
 
-{Array.isArray(meta.sources) && meta.sources.length > 0 ? (
-  meta.sources.map((src: any, i: number) => {
-    // Filter only valid URLs
-    const validTools =
-      Array.isArray(src.tools) && src.tools.length
-        ? src.tools.filter((t: string) => /^https?:\/\//i.test(t))
-        : [];
-
-    // Skip entries with no valid tool URLs
-    if (validTools.length === 0) return null;
-
-    return (
-      <div
-        key={i}
-        className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
-      >
-        <div className="font-medium text-gray-800">
-          Tool {i + 1}: {src.source || "Unnamed Tool"}
-        </div>
-
-        <div className="mt-1 flex flex-wrap gap-2">
-          {validTools.map((tool: string, j: number) => {
-            const displayName = decodeURIComponent(tool.split("/").pop() || tool);
-            return (
-              <a
-                key={j}
-                href={tool}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100 hover:underline transition"
-              >
-                {displayName.length > 40
-                  ? displayName.slice(0, 40) + "..."
-                  : displayName}
-              </a>
-            );
-          })}
-        </div>
-      </div>
-    );
-  })
-) : (
-  <div className="text-xs text-gray-500 italic pl-2">
-    No tools found.
-  </div>
-)}
-
+                    {Array.isArray(meta.sources) && meta.sources.length > 0 ? (
+                      meta.sources.map((src: any, i: number) => (
+                        <div
+                          key={i}
+                          className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
+                        >
+                          <div className="font-medium text-gray-800">Source {i + 1}</div>
+                          {src.where_to_find && (
+                            <div>
+                              <span className="font-medium">Where:</span> {src.where_to_find}
+                            </div>
+                          )}
+                          {src.timestamps && (
+                            <div>
+                              <span className="font-medium">Timestamp:</span> {src.timestamps}
+                            </div>
+                          )}
+                          {src.category && (
+                            <div>
+                              <span className="font-medium">Category:</span> {src.category}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-gray-500 italic pl-2">No sources available.</div>
+                    )}
                   </div>
                 ))
-              )}
-            </div>
-          </aside>
-        )}
-      </div>
+              )
+            ) : Object.keys(openTools).length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
+                No tools selected
+              </div>
+            ) : (
+              Object.entries(openTools).map(([msgId, meta]: any) => (
+                <div
+                  key={msgId}
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm space-y-3"
+                >
+                  <div className="text-sm font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">
+                    {meta.query ? `Query: ${meta.query}` : "Query"}
+                  </div>
 
-      {/* Modals */}
-      <ProfileModal
-        open={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-        setUser={setUser}
-      />
-      <CreateGroupModal
-        open={createGroupModalOpen}
-        onClose={() => setCreateGroupModalOpen(false)}
-        onCreateGroup={handleCreateGroup}
-      />
-      <RenameModal
-        open={renameModalOpen}
-        onClose={() => setRenameModalOpen(false)}
-        initialValue={renameTarget?.currentName || ""}
-        onConfirm={handleRename}
-        title={`Rename ${renameTarget?.type === "group" ? "Group" : "Chat"}`}
-        label={`Enter new ${
-          renameTarget?.type === "group" ? "group" : "chat"
-        } name`}
-      />
+                  {Array.isArray(meta.sources) && meta.sources.length > 0 ? (
+                    meta.sources.map((src: any, i: number) => {
+                      const validTools =
+                        Array.isArray(src.tools) && src.tools.length
+                          ? src.tools.filter((t: string) => /^https?:\/\//i.test(t))
+                          : [];
+                      if (validTools.length === 0) return null;
 
-      <NewGroupModal
-        open={newGroupModalOpen}
-        onClose={() => setNewGroupModalOpen(false)}
-        onConfirm={async (groupName) => {
-          try {
-            const groupRes = await createGroup({ name: groupName });
-            const newGroup = groupRes.group;
-            const chat = await apiCreateChat("New Chat", newGroup.id);
-            setGroups((prev) => [newGroup, ...prev]);
-            setChatList((prev) => [chat, ...prev]);
-            setCurrentGroupId(newGroup.id);
-            setCurrentChatId(chat.id);
-            setMessages([]);
-            toast.success(`Group "${newGroup.name}" created successfully`);
-          } catch (err) {
-            toast.error("Could not create group");
-          }
-        }}
-      />
+                      return (
+                        <div
+                          key={i}
+                          className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
+                        >
+                          <div className="font-medium text-gray-800">
+                            Tool {i + 1}: {src.source || "Unnamed Tool"}
+                          </div>
+
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {validTools.map((tool: string, j: number) => {
+                              const displayName =
+                                decodeURIComponent(tool.split("/").pop() || tool);
+                              return (
+                                <a
+                                  key={j}
+                                  href={tool}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100 hover:underline transition"
+                                >
+                                  {displayName.length > 40
+                                    ? displayName.slice(0, 40) + "..."
+                                    : displayName}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-xs text-gray-500 italic pl-2">No tools found.</div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      )}
     </div>
-  );
+
+    {/* Modals */}
+    <ProfileModal
+      open={profileModalOpen}
+      onClose={() => setProfileModalOpen(false)}
+      setUser={setUser}
+    />
+    <CreateGroupModal
+      open={createGroupModalOpen}
+      onClose={() => setCreateGroupModalOpen(false)}
+      onCreateGroup={handleCreateGroup}
+    />
+    <RenameModal
+      open={renameModalOpen}
+      onClose={() => setRenameModalOpen(false)}
+      initialValue={renameTarget?.currentName || ""}
+      onConfirm={handleRename}
+      title={`Rename ${renameTarget?.type === "group" ? "Group" : "Chat"}`}
+      label={`Enter new ${renameTarget?.type === "group" ? "group" : "chat"} name`}
+    />
+    <NewGroupModal
+      open={newGroupModalOpen}
+      onClose={() => setNewGroupModalOpen(false)}
+      onConfirm={async (groupName) => {
+        try {
+          const groupRes = await createGroup({ name: groupName });
+          const newGroup = groupRes.group;
+          const chat = await apiCreateChat("New Chat", newGroup.id);
+          setGroups((prev) => [newGroup, ...prev]);
+          setChatList((prev) => [chat, ...prev]);
+          setCurrentGroupId(newGroup.id);
+          setCurrentChatId(chat.id);
+          setMessages([]);
+          toast.success(`Group "${newGroup.name}" created successfully`);
+        } catch (err) {
+          toast.error("Could not create group");
+        }
+      }}
+    />
+  </div>
+);
+
 };
 
 export default ChatApp;
