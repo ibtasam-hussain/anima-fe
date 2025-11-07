@@ -26,7 +26,7 @@ echo "🚀 Deploying frontend..."
 npm install
 npm run build
 
-pm2 restart 1
+pm2 restart 0
 
 EOF
 

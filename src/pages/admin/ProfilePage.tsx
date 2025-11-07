@@ -1,8 +1,8 @@
-// src/pages/admin/ProfilePage.tsx
 import React, { useEffect, useState, useRef } from "react";
 import { toast } from "react-hot-toast";
 import PH from "@/assets/ph.jpg";
 import { getProfile, setupProfile, changePassword } from "@/apis/userAndAdminApi";
+import { FaEye, FaEyeSlash } from "react-icons/fa"; // Import eye and eye-slash icons
 
 const ImageUrl = import.meta.env.VITE_IMAGE_URL as string;
 
@@ -12,6 +12,7 @@ const ProfilePage: React.FC = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPwd, setChangingPwd] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   const [profile, setProfile] = useState({
     firstName: "",
@@ -188,23 +189,41 @@ const ProfilePage: React.FC = () => {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm text-gray-600">New Password</label>
-            <input
-              type="password"
-              name="password"
-              value={profile.password}
-              onChange={handleChange}
-              className="w-full border rounded-md px-3 py-2 text-sm mt-1"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={profile.password}
+                onChange={handleChange}
+                className="w-full border rounded-md px-3 py-2 text-sm mt-1"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute top-2 right-0 mt-2 mr-3 text-md text-gray-500"
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />} {/* Toggle eye icon */}
+              </button>
+            </div>
           </div>
           <div>
             <label className="text-sm text-gray-600">Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={profile.confirmPassword}
-              onChange={handleChange}
-              className="w-full border rounded-md px-3 py-2 text-sm mt-1"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={profile.confirmPassword}
+                onChange={handleChange}
+                className="w-full border rounded-md px-3 py-2 text-sm mt-1"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute top-2 right-0 mt-2 mr-3 text-md text-gray-500"
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />} {/* Toggle eye icon */}
+              </button>
+            </div>
           </div>
         </div>
 

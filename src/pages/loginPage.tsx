@@ -176,10 +176,6 @@ const LoginPage: React.FC = () => {
           <h1 className="mt-10 sm:mt-14 text-2xl sm:text-3xl md:text-[36px] leading-tight font-semibold tracking-tight">
             Login to Your Account
           </h1>
-          <p className="mx-auto mt-3 sm:mt-4 max-w-2xl text-sm sm:text-base leading-relaxed text-gray-500">
-            Vorem ipsum dolor sit amet, consectetur adipiscing elit. Vorem ipsum
-            dolor sit amet, consectetur adipiscing elit.
-          </p>
         </section>
 
         {/* Form + Social grid */}

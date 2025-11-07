@@ -76,9 +76,7 @@ export const SignupForm = () => {
             <h2 className="font-bold text-2xl sm:text-3xl md:text-4xl text-foreground">
               Signup to Your Account
             </h2>
-            <p className="text-muted-foreground text-sm sm:text-base md:text-lg max-w-2xl mx-auto">
-              Vorem ipsum dolor sit amet, consectetur adipiscing elit. Vorem ipsum dolor sit amet, consectetur adipiscing elit.
-            </p>
+       
           </div>
 
           {/* Form card-ish spacing */}
