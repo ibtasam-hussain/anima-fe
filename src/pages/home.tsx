@@ -20,8 +20,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import PH from "@/assets/ph.jpg";
-import logo from "@/assets/logo.png";
-import logoBiome from "@/assets/biome.png";
 import TypingIndicator from "@/components/typingIndicator";
 import AssistantMessage from "@/components/AssistantMessage";
 import {
@@ -40,9 +38,6 @@ import {
   type Message as ApiMessage,
   type AiMeta,
 } from "@/apis/chatApis";
-
-const BaseUrl = import.meta.env.VITE_BASE_URL as string;
-const ImageUrl = import.meta.env.VITE_IMAGE_URL as string;
 
 // ---------- Types ----------
 type User = {
@@ -801,21 +796,10 @@ useEffect(() => {
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem("auth_token");
-        if (token) {
-          const res = await fetch(`${BaseUrl}users/get-profile`, {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.user) {
-              setUser(data.user);
-              localStorage.setItem("user", JSON.stringify(data.user));
-            }
-          }
+        // Load user profile from localStorage (set during local login/signup)
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
         }
 
         const [chats, groupRes] = await Promise.all([
@@ -971,15 +955,10 @@ if (window.innerWidth < 768) setSidebarOpen(false);
           prev.map((c) => (c.id === chatId ? { ...c, title: newTitle } : c))
         );
 
-        // 🔹 Sync with backend (non-blocking)
-        fetch(`${BaseUrl}chats/${chatId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-          },
-          body: JSON.stringify({ title: newTitle }),
-        }).catch((err) => console.warn("Title update failed:", err));
+        // 🔹 Persist locally (non-blocking)
+        renameChat(chatId, newTitle).catch((err) =>
+          console.warn("Title update failed:", err)
+        );
       }
 
       // 🧠 4️⃣ Send the message to backend
@@ -1404,14 +1383,12 @@ return (
             <div className="flex items-center justify-center h-full">
               <div className="mx-auto max-w-5xl text-center">
                 <div className="flex flex-col items-center justify-center py-10 md:py-16">
-                  <img
-                    src={logoBiome}
-                    alt="MCSC"
-                    className="h-16 w-16 md:h-24 md:w-24 opacity-95 mb-5"
-                  />
-                  <h1 className="text-3xl md:text-5xl font-bold mb-2 md:mb-3">
-                    Welcome to MCSC
+                  <h1 className="text-4xl md:text-6xl font-bold mb-2 md:mb-3 text-gray-900">
+                    ANIMAAI
                   </h1>
+                  <h2 className="text-2xl md:text-4xl font-semibold mb-2 md:mb-3 text-gray-700">
+                    Welcome to ANIMAAI
+                  </h2>
                   <p className="max-w-2xl text-gray-500 text-sm md:text-lg">
                     Your AI-powered learning companion. Ask questions, explore concepts,
                     and master new skills through interactive conversations.
@@ -1440,45 +1417,7 @@ return (
                     />
                   </div>
                 ) : (
-                  <AssistantMessage
-                    key={m.id}
-                    text={m.content}
-                    meta={m.meta}
-                    isActive={!!openSources[m.id]}
-                    onToggleSource={() => {
-                      setOpenSources((prev) => {
-                        const next = { ...prev } as any;
-                        if (next[m.id]) delete next[m.id];
-                        else if (m.meta) next[m.id] = m.meta;
-                        return next;
-                      });
-                      setRightPaneVisible(true);
-                      setRightTab("Content");
-                    }}
-                    isToolsActive={!!openTools[m.id]}
-                    onToggleTools={() => {
-                      setOpenTools((prev) => {
-                        const next: any = { ...prev };
-                        if (next[m.id]) {
-                          delete next[m.id];
-                        } else if (m.meta) {
-                          const allSources = Array.isArray(m.meta.sources)
-                            ? m.meta.sources.map((src: any) => ({
-                                source: src.source,
-                                tools: Array.isArray(src.tools) ? src.tools : src.tools ? [src.tools] : [],
-                              }))
-                            : [];
-                          next[m.id] = {
-                            query: m.meta?.query || null,
-                            sources: allSources,
-                          };
-                        }
-                        return next;
-                      });
-                      setRightPaneVisible(true);
-                      setRightTab("Tools");
-                    }}
-                  />
+                  <AssistantMessage key={m.id} text={m.content} meta={m.meta} />
                 )
               )}
               {isTyping && (
@@ -1518,181 +1457,7 @@ return (
 
       </section>
 
-      {/* Right Pane (drawer on mobile, static on desktop) */}
-      {rightPaneVisible && !showLanding && (
-        <aside
-          className={["rounded-none md:rounded-2xl relative",
-
-
-            "transition-transform duration-300 ease-in-out shrink-0 ",
-            "fixed md:static z-40 md:z-0 inset-y-0 right-0",
-            "transform md:transform-none translate-x-0 md:translate-x-0",
-            "w-[88vw] max-w-[380px] md:w-[350px]",
-            "rounded-l-2xl md:rounded-2xl border border-gray-200 bg-[#f4f7fb] shadow-sm",
-          ].join(" ")}
-        >
-
-          {/* Mobile Close Icon - Left Sidebar */}
-{sidebarOpen && (
-  <button
-    onClick={() => setSidebarOpen(false)}
-    className="absolute top-1/2 -translate-y-1/2 -right-4 md:hidden z-[100]
-               rounded-full bg-gray-100 p-2 shadow hover:bg-gray-200 border border-gray-200"
-  >
-    <ChevronLeft className="h-5 w-5 text-gray-600" />
-  </button>
-)}
-
-          {/* Center Close Icon (vertically middle of the pane) */}
-<button
-  onClick={() => setRightPaneVisible(false)}
-  className="absolute top-1/2 -translate-y-1/2 -left-4 md:hidden z-[100]
-             rounded-full bg-gray-100 p-2 shadow hover:bg-gray-200 border border-gray-200"
->
-  <ChevronRight className="h-5 w-5 text-gray-600" />
-</button>
-<div className="relative border-b border-gray-200 px-5 py-4 text-center">
-  <h2 className="text-[18px] font-semibold">Resources</h2>
-
-
-</div>
-
-          <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
-            <div className="flex w-full rounded-full bg-gray-100 p-1">
-              <button
-                onClick={() => setRightTab("Content")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm transition ${
-                  rightTab === "Content"
-                    ? "bg-gray-200 text-gray-900 font-medium"
-                    : "text-gray-500 hover:text-gray-900"
-                }`}
-              >
-                <PlayCircle className="h-4 w-4" />
-                Sources
-              </button>
-
-              <button
-                onClick={() => setRightTab("Tools")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-full px-3 py-1.5 text-sm transition ${
-                  rightTab === "Tools"
-                    ? "bg-gray-200 text-gray-900 font-medium"
-                    : "text-gray-500 hover:text-gray-900"
-                }`}
-              >
-                <DownloadIcon className="h-4 w-4" />
-                Tools
-              </button>
-            </div>
-          </div>
-
-          <div className="h-[calc(100%-120px)] overflow-y-auto px-4 py-4 space-y-4">
-            {rightTab === "Content" ? (
-              Object.keys(openSources).length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
-                  No sources selected
-                </div>
-              ) : (
-                Object.entries(openSources).map(([msgId, meta]: any) => (
-                  <div
-                    key={msgId}
-                    className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm space-y-3"
-                  >
-                    <div className="text-sm font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">
-                      {meta.query ? `Query: ${meta.query}` : "Query"}
-                    </div>
-
-                    {Array.isArray(meta.sources) && meta.sources.length > 0 ? (
-                      meta.sources.map((src: any, i: number) => (
-                        <div
-                          key={i}
-                          className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
-                        >
-                          <div className="font-medium text-gray-800">Source {i + 1}</div>
-                          {src.where_to_find && (
-                            <div>
-                              <span className="font-medium">Where:</span> {src.where_to_find}
-                            </div>
-                          )}
-                          {src.timestamps && (
-                            <div>
-                              <span className="font-medium">Timestamp:</span> {src.timestamps}
-                            </div>
-                          )}
-                          {src.category && (
-                            <div>
-                              <span className="font-medium">Category:</span> {src.category}
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-xs text-gray-500 italic pl-2">No sources available.</div>
-                    )}
-                  </div>
-                ))
-              )
-            ) : Object.keys(openTools).length === 0 ? (
-              <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500">
-                No tools selected
-              </div>
-            ) : (
-              Object.entries(openTools).map(([msgId, meta]: any) => (
-                <div
-                  key={msgId}
-                  className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm space-y-3"
-                >
-                  <div className="text-sm font-semibold text-gray-900 mb-2 border-b border-gray-100 pb-2">
-                    {meta.query ? `Query: ${meta.query}` : "Query"}
-                  </div>
-
-                  {Array.isArray(meta.sources) && meta.sources.length > 0 ? (
-                    meta.sources.map((src: any, i: number) => {
-                      const validTools =
-                        Array.isArray(src.tools) && src.tools.length
-                          ? src.tools.filter((t: string) => /^https?:\/\//i.test(t))
-                          : [];
-                      if (validTools.length === 0) return null;
-
-                      return (
-                        <div
-                          key={i}
-                          className="border-l-2 border-gray-200 pl-3 ml-1 space-y-1 text-xs text-gray-700"
-                        >
-                          <div className="font-medium text-gray-800">
-                            Tool {i + 1}: {src.source || "Unnamed Tool"}
-                          </div>
-
-                          <div className="mt-1 flex flex-wrap gap-2">
-                            {validTools.map((tool: string, j: number) => {
-                              const displayName =
-                                decodeURIComponent(tool.split("/").pop() || tool);
-                              return (
-                                <a
-                                  key={j}
-                                  href={tool}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100 hover:underline transition"
-                                >
-                                  {displayName.length > 40
-                                    ? displayName.slice(0, 40) + "..."
-                                    : displayName}
-                                </a>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-xs text-gray-500 italic pl-2">No tools found.</div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </aside>
-      )}
+      {/* Right pane removed – sources/tools UI no longer displayed */}
     </div>
 
     {/* Modals */}

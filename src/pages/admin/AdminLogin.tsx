@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import logo from "@/assets/logo.png";
-import { adminLogin } from "@/apis/userAndAdminApi";
 import { Eye, EyeOff } from "lucide-react";   // ✅ add icons
 
 const AdminLogin: React.FC = () => {
@@ -22,16 +20,23 @@ const AdminLogin: React.FC = () => {
 
     try {
       setLoading(true);
-      const data = await adminLogin(form);
-      toast.success("Login successful ✅");
+      // Offline/local-only admin login: accept any credentials
+      // and store a demo admin user + token in localStorage.
+      const adminUser = {
+        firstName: "Admin",
+        lastName: "User",
+        email: form.email,
+        role: "admin",
+      };
 
-      localStorage.setItem("adminToken", data.token);
-      localStorage.setItem("adminUser", JSON.stringify(data.user));
+      localStorage.setItem("adminToken", "offline-admin-token");
+      localStorage.setItem("adminUser", JSON.stringify(adminUser));
+
+      toast.success("Admin login successful ✅");
 
       navigate("/admin/users");
     } catch (err: any) {
-      const message =
-        err.response?.data?.message || "Login failed. Please try again.";
+      const message = err?.message || "Login failed. Please try again.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -42,10 +47,10 @@ const AdminLogin: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-[#e9f1f8] px-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-md p-8">
         <div className="flex flex-col items-center mb-6">
-          <img src={logo} alt="Biome Logo" className="h-18 w-auto mb-2" />
-          <h1 className="text-[22px] font-semibold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">ANIMAAI</h1>
+          <h2 className="text-[22px] font-semibold text-gray-900">
             Admin Login
-          </h1>
+          </h2>
           <p className="text-sm text-gray-500">Welcome back, admin </p>
         </div>
 

@@ -1,27 +1,6 @@
-import axios, {
-  AxiosHeaders,
-  InternalAxiosRequestConfig,
-} from "axios";
-
-const BaseUrl = import.meta.env.VITE_BASE_URL as string;
-
-// --------------------
-// 🔐 Axios instance
-// --------------------
-const api = axios.create({
-  baseURL: BaseUrl, // example: http://localhost:3000/api/
-});
-
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem("auth_token");
-  if (token) {
-    (config.headers ??= new AxiosHeaders()).set(
-      "Authorization",
-      `Bearer ${token}`
-    );
-  }
-  return config;
-});
+// Offline, in-memory/localStorage chat utilities.
+// All previous HTTP/axios calls have been removed so the
+// chat experience works without any backend.
 
 // --------------------
 // 🔹 Types
@@ -34,6 +13,8 @@ export type AiMeta = {
   query?: string | null;
   success?: boolean;
   error?: string | null;
+  ai_timestamp?: string | null;
+  response_time?: string | null;
 };
 
 export type Chat = {
@@ -64,105 +45,202 @@ export type Group = {
 };
 
 // --------------------
-// 🔹 API Endpoints
+// 🔹 Local Storage Helpers
 // --------------------
-const ENDPOINTS = {
-  // ---- Chats ----
-  createChat: "chats", // POST /api/chats
-  userChats: "chats", // GET /api/chats
-  chatMessages: (id: number | string) => `chats/${id}/messages`, // GET /api/chats/:id/messages
-  addMessage: (id: number | string) => `chats/${id}/messages`, // POST /api/chats/:id/messages
-  deleteChat: (id: number | string) => `chats/${id}`, // DELETE /api/chats/:id
+const CHATS_KEY = "offline_chats";
+const MESSAGES_KEY = "offline_chat_messages";
+const GROUPS_KEY = "offline_chat_groups";
 
-  // ---- Groups ----
-  createGroup: "groups", // POST /api/groups
-  getGroups: "groups", // GET /api/groups
-  getGroupById: (id: number | string) => `groups/${id}`, // GET /api/groups/:id
-  getGroupChats: (id: number | string) => `groups/${id}/chats`, // GET /api/groups/:id/chats
-  deleteGroup: (id: number | string) => `groups/${id}`, // DELETE /api/groups/:id
-};
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function load<T>(key: string): T[] {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+    if (!raw) return [];
+    return JSON.parse(raw) as T[];
+  } catch {
+    return [];
+  }
+}
+
+function save<T>(key: string, value: T[]) {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
+
+function nextId(items: { id: number }[]): number {
+  const max = items.reduce((m, i) => (i.id > m ? i.id : m), 0);
+  return max + 1 || 1;
+}
 
 // --------------------
-// 🔹 Chat APIs
+// 🔹 Chat APIs (offline)
 // --------------------
 
-// ✅ Create a new chat (optionally inside a group)
+// Create a new chat (optionally inside a group)
 export async function createChat(
   title?: string,
   groupId?: number | null
 ): Promise<Chat> {
-  const { data } = await api.post(ENDPOINTS.createChat, { title, groupId });
-  return data.chat as Chat;
+  const chats = load<Chat>(CHATS_KEY);
+  const id = nextId(chats);
+  const chat: Chat = {
+    id,
+    userId: 1,
+    title: title?.trim() || "New Chat",
+    groupId: groupId ?? null,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+  const updated = [...chats, chat];
+  save(CHATS_KEY, updated);
+  return chat;
 }
 
-// ✅ Add message (User → AI)
+// Add message (User → AI) – fully local echo-style AI
 export async function addMessage(params: {
   chatId: number;
   sender: "user" | "ai";
   content: string;
 }): Promise<{ user: Message; ai: Message }> {
-  const { data } = await api.post(ENDPOINTS.addMessage(params.chatId), params);
-  return { user: data.user as Message, ai: data.ai as Message };
+  const messages = load<Message>(MESSAGES_KEY);
+  const userMessage: Message = {
+    id: `u-${Date.now()}`,
+    chatId: params.chatId,
+    sender: "user",
+    content: params.content,
+    createdAt: nowIso(),
+    meta: null,
+  };
+
+  const aiMessage: Message = {
+    id: `ai-${Date.now()}`,
+    chatId: params.chatId,
+    sender: "ai",
+    content: `This is a local demo response.\n\nYou said:\n\n${params.content}`,
+    createdAt: nowIso(),
+    meta: {
+      success: true,
+      query: params.content,
+      source: "Local demo",
+      where_to_find: "Offline knowledge base",
+      timestamps: null,
+      tools: [],
+      ai_timestamp: nowIso(),
+      response_time: null,
+    },
+  };
+
+  const updatedMessages = [...messages, userMessage, aiMessage];
+  save(MESSAGES_KEY, updatedMessages);
+
+  // Also bump chat "last updated" timestamp for sidebar ordering
+  const chats = load<Chat>(CHATS_KEY);
+  const updatedChats = chats.map((c) =>
+    c.id === params.chatId ? { ...c, updatedAt: nowIso() } : c
+  );
+  save(CHATS_KEY, updatedChats);
+
+  return { user: userMessage, ai: aiMessage };
 }
 
-// ✅ Get all chats of logged-in user
+// Get all chats of logged-in user
 export async function getUserChats(): Promise<Chat[]> {
-  const { data } = await api.get(ENDPOINTS.userChats);
-  return data.chats as Chat[];
+  return load<Chat>(CHATS_KEY);
 }
 
-// ✅ Get all messages of a chat
+// Get all messages of a chat
 export async function getChatMessages(chatId: number): Promise<Message[]> {
-  const { data } = await api.get(ENDPOINTS.chatMessages(chatId));
-  return data.messages as Message[];
+  const messages = load<Message>(MESSAGES_KEY);
+  return messages.filter((m) => m.chatId === chatId);
 }
 
-// ✅ Delete a chat
+// Delete a chat and its messages
 export async function deleteChat(chatId: number): Promise<void> {
-  await api.delete(ENDPOINTS.deleteChat(chatId));
+  const chats = load<Chat>(CHATS_KEY).filter((c) => c.id !== chatId);
+  const messages = load<Message>(MESSAGES_KEY).filter((m) => m.chatId !== chatId);
+  save(CHATS_KEY, chats);
+  save(MESSAGES_KEY, messages);
 }
 
 // --------------------
-// 🔹 Group APIs
+// 🔹 Group APIs (offline)
 // --------------------
 
-// ✅ Create a group
 export async function createGroup(payload: { name: string }): Promise<{ group: Group }> {
-  const { data } = await api.post(ENDPOINTS.createGroup, payload);
-  return data;
+  const groups = load<Group>(GROUPS_KEY);
+  const id = nextId(groups);
+  const group: Group = {
+    id,
+    name: payload.name.trim() || "New Group",
+    description: null,
+    createdBy: 1,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+  const updated = [...groups, group];
+  save(GROUPS_KEY, updated);
+  return { group };
 }
 
-// ✅ Get all groups (with chats)
 export async function getGroups(): Promise<{ groups: Group[] }> {
-  const { data } = await api.get(ENDPOINTS.getGroups);
-  return data;
+  return { groups: load<Group>(GROUPS_KEY) };
 }
 
-// ✅ Get single group (with its chats & messages)
 export async function getGroupById(groupId: number): Promise<Group> {
-  const { data } = await api.get(ENDPOINTS.getGroupById(groupId));
-  return data.group as Group;
+  const groups = load<Group>(GROUPS_KEY);
+  const group = groups.find((g) => g.id === groupId);
+  if (!group) {
+    throw new Error("Group not found");
+  }
+  return group;
 }
 
-// ✅ Get all chats in a group
 export async function getGroupChats(groupId: number): Promise<Chat[]> {
-  const { data } = await api.get(ENDPOINTS.getGroupChats(groupId));
-  return data.chats as Chat[];
+  const chats = load<Chat>(CHATS_KEY);
+  return chats.filter((c) => c.groupId === groupId);
 }
 
-// ✅ Delete a group
 export async function deleteGroup(groupId: number): Promise<void> {
-  await api.delete(ENDPOINTS.deleteGroup(groupId));
+  const groups = load<Group>(GROUPS_KEY).filter((g) => g.id !== groupId);
+  const chats = load<Chat>(CHATS_KEY).filter((c) => c.groupId !== groupId);
+  const chatIds = new Set(chats.map((c) => c.id));
+  const messages = load<Message>(MESSAGES_KEY).filter(
+    (m) => !chatIds.has(m.chatId as number)
+  );
+  save(GROUPS_KEY, groups);
+  save(CHATS_KEY, chats);
+  save(MESSAGES_KEY, messages);
 }
 
-// ✅ Rename Group
-export async function renameGroup(groupId: number, name: string): Promise<{ group: Group }> {
-  const { data } = await api.post("groups/rename", { groupId, name });
-  return data;
+export async function renameGroup(
+  groupId: number,
+  name: string
+): Promise<{ group: Group }> {
+  const groups = load<Group>(GROUPS_KEY);
+  const updatedGroups = groups.map((g) =>
+    g.id === groupId ? { ...g, name, updatedAt: nowIso() } : g
+  );
+  save(GROUPS_KEY, updatedGroups);
+  const group = updatedGroups.find((g) => g.id === groupId)!;
+  return { group };
 }
 
-// ✅ Rename Chat
-export async function renameChat(chatId: number, title: string): Promise<{ chat: Chat }> {
-  const { data } = await api.post("chatsrename", { chatId, title });
-  return data;
+export async function renameChat(
+  chatId: number,
+  title: string
+): Promise<{ chat: Chat }> {
+  const chats = load<Chat>(CHATS_KEY);
+  const updatedChats = chats.map((c) =>
+    c.id === chatId ? { ...c, title, updatedAt: nowIso() } : c
+  );
+  save(CHATS_KEY, updatedChats);
+  const chat = updatedChats.find((c) => c.id === chatId)!;
+  return { chat };
 }

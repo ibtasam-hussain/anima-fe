@@ -1,13 +1,7 @@
 import React, { useState } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { FcGoogle } from "react-icons/fc";
-import { FaFacebookF } from "react-icons/fa";
-import biomeLogoImage from "@/assets/logo.png";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-
-const BASE_URL = import.meta.env.VITE_BASE_URL || process.env.Base_url;
-console.log(BASE_URL);
 
 /* ---------- Inputs ---------- */
 const Input: React.FC<
@@ -31,51 +25,6 @@ const Input: React.FC<
         {...props}
       />
     </div>
-  );
-};
-
-/* ---------- Social Action (link or button) ---------- */
-type SocialActionProps = {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  href?: string;
-  onClick?: () => void;
-};
-const SocialAction: React.FC<SocialActionProps> = ({
-  icon,
-  children,
-  href,
-  onClick,
-}) => {
-  const cls = [
-    "h-12 sm:h-14 w-full rounded-md border border-gray-200 bg-white",
-    "px-5 text-[15px] font-medium text-gray-900",
-    "hover:bg-gray-50 active:bg-gray-100 transition",
-    "flex items-center justify-start",
-  ].join(" ");
-  const IconWrap = ({ children }: { children: React.ReactNode }) => (
-    <span
-      className={[
-        "mr-3 flex h-9 w-9 items-center justify-center",
-        "rounded-full border border-gray-300 bg-white shrink-0",
-      ].join(" ")}
-    >
-      {children}
-    </span>
-  );
-  if (href) {
-    return (
-      <a href={href} className={cls}>
-        <IconWrap>{icon}</IconWrap>
-        <span className="truncate">{children}</span>
-      </a>
-    );
-  }
-  return (
-    <button type="button" onClick={onClick} className={cls}>
-      <IconWrap>{icon}</IconWrap>
-      <span className="truncate">{children}</span>
-    </button>
   );
 };
 
@@ -105,13 +54,9 @@ const PrimaryButton: React.FC<
 const Header: React.FC = () => (
   <header className="pt-8 sm:pt-10">
     <div className="mx-auto flex max-w-7xl items-center justify-center">
-      <div className="flex items-center justify-center">
-        <img
-          src={biomeLogoImage}
-          alt="Microbiome Logo"
-          className="w-40 sm:w-60 md:w-72 object-contain"
-        />
-      </div>
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900">
+        ANIMAAI
+      </h1>
     </div>
   </header>
 );
@@ -145,22 +90,29 @@ const LoginPage: React.FC = () => {
     const password = formData.get("password") as string;
 
     try {
-      const res = await fetch(`${BASE_URL}users/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Login failed");
+      // Offline/local-only login: accept any credentials and
+      // store a demo token + user in localStorage.
+      const nameFromEmail =
+        email && email.includes("@") ? email.split("@")[0] : "User";
 
-      toast.success(data.message || "Login successful 🎉");
-      localStorage.setItem("auth_token", data.token);
+      localStorage.setItem("auth_token", "offline-user-token");
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          firstName: nameFromEmail,
+          lastName: "",
+          email,
+          role: "user",
+        })
+      );
+
+      toast.success("Logged in locally 🎉");
 
       setTimeout(() => {
         window.location.href = "/";
       }, 900);
     } catch (err: any) {
-      toast.error(err.message || "Something went wrong ❌");
+      toast.error(err?.message || "Something went wrong ❌");
     } finally {
       setLoading(false);
     }
@@ -178,16 +130,14 @@ const LoginPage: React.FC = () => {
           </h1>
         </section>
 
-        {/* Form + Social grid */}
-        <section className="mt-10 sm:mt-14 w-full max-w-3xl">
-<form
-  className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5"
-  onSubmit={handleLogin}
->
-  {/* LEFT: Inputs (Email, Password) */}
-  <div className="md:col-span-1 space-y-4">
-    {/* Email */}
-    <Input
+        {/* Form */}
+        <section className="mt-10 sm:mt-14 w-full max-w-md mx-auto">
+          <form
+            className="space-y-4 sm:space-y-5"
+            onSubmit={handleLogin}
+          >
+            {/* Email */}
+            <Input
       id="email"
       name="email"
       label="Email Address"
@@ -197,8 +147,8 @@ const LoginPage: React.FC = () => {
       required
     />
 
-    {/* Password + toggle */}
-    <div className="relative">
+            {/* Password + toggle */}
+            <div className="relative">
       <Input
         id="password"
         name="password"
@@ -217,27 +167,9 @@ const LoginPage: React.FC = () => {
         {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
       </button>
     </div>
-  </div>
 
-  {/* RIGHT: Social (Google, Facebook) */}
-  <div className="md:col-span-1 space-y-4">
-    <SocialAction
-      href={`${BASE_URL}social-login/google`}
-      icon={<FcGoogle className="h-5 w-5" />}
-    >
-      Sign in with Google
-    </SocialAction>
-
-    <SocialAction
-      href={`${BASE_URL}social-login/facebook`}
-      icon={<FaFacebookF className="h-4 w-4 text-black" />}
-    >
-      Sign in with Facebook
-    </SocialAction>
-  </div>
-
-  {/* Submit */}
-  <div className="md:col-span-2">
+    {/* Submit */}
+    <div>
     <PrimaryButton type="submit" disabled={loading}>
       {loading ? "Logging in..." : "Login to Your Account"}
     </PrimaryButton>
@@ -246,9 +178,9 @@ const LoginPage: React.FC = () => {
       <Link to="/signup" className="text-[#3B68F6] font-medium hover:underline">
         Signup
       </Link>
-    </p>
-  </div>
-</form>
+              </p>
+            </div>
+          </form>
 
 
         </section>

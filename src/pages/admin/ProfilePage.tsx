@@ -4,8 +4,6 @@ import PH from "@/assets/ph.jpg";
 import { getProfile, setupProfile, changePassword } from "@/apis/userAndAdminApi";
 import { FaEye, FaEyeSlash } from "react-icons/fa"; // Import eye and eye-slash icons
 
-const ImageUrl = import.meta.env.VITE_IMAGE_URL as string;
-
 const ProfilePage: React.FC = () => {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -34,8 +32,7 @@ const ProfilePage: React.FC = () => {
           email: data?.user?.email || "",
         }));
         if (data?.user?.profile) {
-          setPreview(`${ImageUrl}${data.user.profile}`);
-          console.log("PROFILE IMAGE URL:", `${ImageUrl}${data.user.profile}`);
+          setPreview(data.user.profile);
         }
       } catch {
         toast.error("Failed to load profile");

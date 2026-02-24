@@ -3,12 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { FaGoogle, FaFacebookF } from "react-icons/fa";
-import biomeLogoImage from "@/assets/logo.png";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-
-const BASE_URL = import.meta.env.VITE_BASE_URL || process.env.Base_url;
 
 export const SignupForm = () => {
   const [loading, setLoading] = useState(false);
@@ -25,33 +21,25 @@ export const SignupForm = () => {
     const password = formData.get("password") as string;
 
     try {
-      const res = await fetch(`${BASE_URL}users/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email, password }),
-      });
+      // Offline/local-only signup/login: create a demo user in localStorage.
+      const user = {
+        firstName,
+        lastName,
+        email,
+        role: "user",
+      };
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Signup failed");
+      localStorage.setItem("auth_token", "offline-user-token");
+      localStorage.setItem("user", JSON.stringify(user));
+
       toast.success("Signup successful 🎉");
-
-      const loginRes = await fetch(`${BASE_URL}users/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const loginData = await loginRes.json();
-      if (!loginRes.ok) throw new Error(loginData.message || "Login failed");
-
-      localStorage.setItem("auth_token", loginData.token);
-      toast.success("Logged in automatically ✅");
+      toast.success("Logged in locally ✅");
 
       setTimeout(() => {
         window.location.href = "/";
       }, 900);
     } catch (err: any) {
-      toast.error(err.message || "Something went wrong ❌");
+      toast.error(err?.message || "Something went wrong ❌");
     } finally {
       setLoading(false);
     }
@@ -62,13 +50,11 @@ export const SignupForm = () => {
       {/* Page container: responsive paddings & centered content */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-14">
         <div className="mx-auto w-full max-w-md sm:max-w-xl md:max-w-2xl space-y-8">
-          {/* Logo */}
+          {/* Brand heading */}
           <div className="flex items-center justify-center">
-            <img
-              src={biomeLogoImage}
-              alt="Microbiome Logo"
-              className="w-40 sm:w-56 md:w-72 object-contain"
-            />
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground">
+              ANIMAAI
+            </h1>
           </div>
 
           {/* Heading */}
@@ -169,22 +155,6 @@ export const SignupForm = () => {
               </Link>
             </p>
           </form>
-
-          {/* Social Login */}
-          <div className="flex flex-col md:flex-row gap-3 sm:gap-4 justify-center">
-            <a
-              href={`${BASE_URL}social-login/google`}
-              className="w-full md:w-auto text-center flex items-center justify-center gap-2 border rounded-md px-4 py-3 hover:bg-accent transition"
-            >
-              <FaGoogle /> <span className="text-sm sm:text-base">Sign in with Google</span>
-            </a>
-            <a
-              href={`${BASE_URL}social-login/facebook`}
-              className="w-full md:w-auto text-center flex items-center justify-center gap-2 border rounded-md px-4 py-3 hover:bg-accent transition"
-            >
-              <FaFacebookF /> <span className="text-sm sm:text-base">Sign in with Facebook</span>
-            </a>
-          </div>
 
           {/* Footer */}
           <div className="text-center text-xs sm:text-sm text-muted-foreground pb-4 sm:pb-6 space-x-2 sm:space-x-6">

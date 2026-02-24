@@ -4,11 +4,11 @@ import {
   ShieldCheck,
   BookOpen,
   HelpCircle,
+  LayoutGrid,
   LogOut,
   UserCog,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
-import logo from "@/assets/logo.png";
 import PH from "@/assets/ph.jpg";
 
 const menuItems = [
@@ -19,9 +19,14 @@ const menuItems = [
     path: "/admin/admins",
   },
   {
-    name: "Knowledge Base",
+    name: "Canons",
     icon: <BookOpen className="h-4 w-4" />,
     path: "/admin/knowledge",
+  },
+  {
+    name: "Prebuilt Buttons",
+    icon: <LayoutGrid className="h-4 w-4" />,
+    path: "/admin/prebuilt-buttons",
   },
   {
     name: "Unanswered Queries",
@@ -54,11 +59,9 @@ const AdminSidebar: React.FC = () => {
       ? `${data.firstName} ${data.lastName}`
       : "Admin User";
 
-  const adminEmail = data?.email || "admin@biome.ai";
+  const adminEmail = data?.email || "admin@anima.ai";
 
-  const profileImage = data?.profile
-    ? `${import.meta.env.VITE_IMAGE_URL}${data.profile}`
-    : PH;
+  const profileImage = data?.profile || PH;
 
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
@@ -68,10 +71,10 @@ const AdminSidebar: React.FC = () => {
 
   return (
     <aside className="h-screen w-[280px] shrink-0 rounded-2xl bg-white shadow-sm flex flex-col">
-      {/* Logo */}
-<div className="flex items-center justify-center py-10 border-b border-gray-100">
-  <img src={logo} alt="Biome Logo" className="h-20 object-contain" />
-</div>
+      {/* Brand heading */}
+      <div className="flex items-center justify-center py-10 border-b border-gray-100">
+        <h1 className="text-2xl font-bold text-gray-900">ANIMAAI</h1>
+      </div>
 
 
       {/* Menu */}
